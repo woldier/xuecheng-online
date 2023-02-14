@@ -452,6 +452,8 @@ base工程需要继承自parent工程，但是需要注意的是两个工程处�
 
 ### 3.2 创建模块工程
 
+![image-20230214143951564](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214143951564.png)
+
 1. 首先在项目根目录创建内容管理模块的父工程xuecheng-plus-content![image-20230213142420250](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230213142420250.png)
 
 创建完成，删除多余的文件(这里的src也要删除)。
@@ -574,3 +576,338 @@ pom文件如下
 4. 在xuecheng-plus-content下创建xuecheng-plus-content-api接口工程。
 
 xuecheng-plus-content-api接口工程的父工程是xuecheng-plus-content，它依赖了xuecheng-plusbase基础工程。
+
+### 3.3 接口开发
+
+#### 3.3.1 课程查询
+
+- 需求分析
+
+业务流程
+
+1. 教学机构人员点击课程管理首先进入课程查询界面，如下：
+
+![image-20230214144354265](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214144354265.png)
+
+2. 在课程进行列表查询页面输入查询条件查询课程信息
+
+当不输入查询条件时输入全部课程信息。 输入查询条件查询符合条件的课程信息。 约束：本教学机构查询本机构的课程信息。
+
+![image-20230214144413832](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214144413832.png)
+
+- 数据模型
+
+课程查询功能涉及的数据表有课程基本信息表、课程计划表，如下图：
+
+![image-20230214144446037](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214144446037.png)
+
+下边从查询条件、查询列表两个方面进行分析：
+
+1. 查询条件：
+
+包括：课程名称、课程审核状态、课程发布状态 课程名称：可以模糊搜索
+课程审核状态：未提交、已提交、审核通过、审核未通过 课程发布状态：未发布、已发布、已下线
+因为是分页查询所以查询条件中还要包括当前页码、每页显示记录数。
+
+2. 查询结果：
+
+查询结果中包括：课程id、课程名称、任务数、创建时间、审核状态、类型，从结果上看基本来源于课 程基本信息表，任务数需要关联教学计划学查询。
+因为是分页查询所以查询结果中还要包括总记录数、当前页、每页显示记录数。
+
+- 生成PO
+
+PO即持久对象(Persistent Object)，它们是由一组属性和属性的get和set方法组成，PO对应于数据库的 表。
+在开发持久层代码时需要根据数据表编写PO类，在实际开发中通常使用代码生成器（工具）生成PO类 的代码。
+由于在需求分析阶段对数据模型进行分析，PO类对应于数据模型，所以在需求分析阶段即可使用工具 生成PO类，为下面的接口定义准备好模型类。
+本项目使用mybatis-plus的generator工程生成PO类，地址在：https://github.com/baomidou/gener ator
+将资料目录下的`day01/资料/xuecheng-plus-generator.zip`解压后拷贝至项目工程根目录
+
+![image-20230214154817365](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214154817365.png)
+
+打开IDEA将其导入项目工程
+
+打开xuecheng-plus-generator工程的pom.xml，右键 点击“Add as Maven Project” 自动识别maven工 程。
+
+![image-20230214154937013](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214154937013.png)
+
+
+
+此时xuecheng-plus-generator工程的pom.xml文件图标发生改变。
+
+![image-20230214155023734](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214155023734.png)
+
+打开`ContentCodeGenerator.java`修改数据库的账号密码,以及ip地址,点击运行即可生成对应的PO
+
+生成好后的文件目录如下
+
+![image-20230214160517328](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214160517328.png)
+
+我们只需要把生成好的po类拷贝到对应的项目模块中去即可,这里我们将其复制到`xuecheng-plus-content-model`模块中
+
+![image-20230214161037982](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214161037982.png)
+
+拷贝完成后,我们会发现有一些报错信息,找不到包,这是因为我们没有导入mybatis-plus依赖,将其添加即可(另外,这里创建的包名有误,应该是com.xuecheng.content.model.po)
+
+
+
+- 接口定义
+
+定义一个接口需要包括以下几个方面：
+
+1. 协议
+
+通常协议采用HTTP，查询类接口通常为get或post，查询条件较少的使用get，较多的使用post。 本接口使用 http post。 还要确定content-type，参数以什么数据格式提交，结果以什么数据格式响应。 一般情况没有特殊情况结果以json 格式响应。
+
+2. 分析请求参数
+
+根据前边对数据模型的分析，请求参数为：课程名称、课程审核状态、当前页码、每页显示记录数。 根据分析的请求参数定义模型类。
+
+3. 分析响应结果
+
+根据前边对数据模型的分析，响应结果为数据列表加一些分页信息（总记录数、当前页、每页显示记录 数）。
+数据列表中数据的属性包括：课程id、课程名称、任务数、创建时间、审核状态、类型。
+注意：查询结果中的审核状态为数据字典中的代码字段，前端会根据审核状态代码 找到对应的名称显 示。
+根据分析的响应结果定义模型类。
+
+4. 分析完成，使用SpringBoot注解开发一个Http接口。
+
+5. 使用接口文档工具查看接口的内容。
+
+6. 接口中调用Service方法完成业务处理。
+
+```
+POST /content/course/list?pageNo=2&pageSize=1 
+Content-Type: application/json 
+{
+"auditStatus": "202002", "courseName": ""
+} 
+###成功响应结果 
+{
+	"items": [
+    {
+		"id": 26, 
+		"companyId": 1232141425, 
+		"companyName": null, 
+		"name": "spring cloud实战", 
+		"users": "所有人", "tags": null, 
+		"mt": "1-3", 
+		"mtName": null,
+        "st": "1-3-2",
+		"pic": "https://cdn.educba.com/academy/wp-content/uploads/2018/08/SpringBOOT-Interview-questions.jpg", 
+		"createDate": "2019-09-04 09:56:19", 
+		"changeDate": "2021-12-26 22:10:38", 
+		"createPeople": null, 
+		"changePeople": null, 
+		"auditStatus": "202002", 
+		"auditMind": null, 
+		"auditNums": 0, 
+		"auditDate": null, 
+		"auditPeople": null, 
+		"status": 1, 
+		"coursePubId": null, 
+		"coursePubDate": null
+	}
+	], 
+	"counts": 23, 
+	"page": 2, 
+	"pageSize": 1
+}
+```
+
+- 定义请求查询模型类
+
+对于查询条件较多的接口定义单独的模型类接收参数。
+由于分页查询这一类的接口在项目较多，这里针对分页查询的参数（当前页码、每页显示记录数）单独 在`xuecheng-plus-base`基础工程定义
+
+![image-20230214164942643](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214164942643.png)
+
+```java
+package com.xuecheng.base.model;
+
+import lombok.Data;
+import lombok.ToString;
+import lombok.extern.java.Log;
+/**
+ * @author woldier
+ * @version 1.0
+ * @description TODO
+ * @date 2023/2/14 16:47
+ **/
+
+
+/**
+ * @description 分页查询通用参数 * @author Mr.M * @date 2022/9/6 14:02 * @version 1.0
+ */
+@Data
+@ToString
+public class PageParams {
+    //当前页码默认值
+    public static final long DEFAULT_PAGE_CURRENT = 1L; //每页记录数默认值
+    public static final long DEFAULT_PAGE_SIZE = 10L;
+
+    //当前页码
+    private Long pageNo = DEFAULT_PAGE_CURRENT;
+    //每页记录数默认值
+
+    private Long pageSize = DEFAULT_PAGE_SIZE;
+
+    public PageParams() {
+    }
+
+    public PageParams(long pageNo, long pageSize) {
+        this.pageNo = pageNo;
+        this.pageSize = pageSize;
+    }
+}
+
+```
+
+除了分页查询参数，剩下的就是课程查询的特有参数，此时需要在内容管理的model工程中定义课程查 询参数模型类。
+定义DTO包，DTO即数据传输对象（DTO）(Data Transfer Object)，用于接口层和业务层之间传输数 据。
+
+![image-20230214165445348](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214165445348.png)
+
+```java
+package com.xuecheng.content.model.dto;
+
+import lombok.Data;
+import lombok.ToString;
+
+/**
+ * * @description 课程查询参数Dto
+ * * @author Woldier Wong
+ * * @date 2022/9/6 14:36
+ * * @version 1.0
+ */
+@Data
+@ToString
+public class QueryCourseParamsDto { //审核状态
+    private String auditStatus; //课程名称 private String courseName; //发布状态
+    private String publishStatus;
+}
+```
+
+
+
+现在项目中有两类模型类：DTO数据传输对象、PO持久化对象，DTO用于接口层向业务层之间传输数 据，PO用于业务层与持久层之间传输数据，有些公司还会设置VO对象，VO对象用在前端与接口层之间 传输数据，如下图：
+
+![image-20230214165648046](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214165648046.png)
+
+当前端有多个平台且接口存在差异时就需要设置VO对象用于前端和接口层传输数据。
+
+比如：
+课程列表查询接口，根据用户需求用户在手机端也要查询课程信息，此时课程查询接口是否需要编写手 机端和PC端两个接口呢？
+如果用户要求通过手机和PC的查询条件或查询结果不一样，此时就需要定义两个Controller课程查询接 口，每个接口定义VO对象与前端传输数据。
+手机查询：根据课程状态查询，查询结果只有课程名称和课程状态。
+PC查询：可以根据课程名称、课程状态、课程审核状态等条件查询，查询结果也比手机查询结果内容 多。
+此时，Service业务层尽量提供一个业务接口，即使两个前端接口需要的数据不一样，Service可以提供 一个最全查询结果，由Controller进行数据整合。
+如下图：
+
+![image-20230214165814374](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214165814374.png)
+
+如果前端的接口没有多样性且比较固定，此时可以取消VO，只用DTO即可。
+
+如下图:
+![image-20230214165833338](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214165833338.png)
+
+- 定义响应模型类
+
+根据接口分析，下边定义响应结果模型类。 针对分页查询结果经过分析也存在固定的数据和格式，所以在base工程定义一个基础的模型类。
+
+![image-20230214170102580](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230214170102580.png)
+
+```java
+package com.xuecheng.base.model;
+
+import lombok.Data;
+import lombok.ToString;
+
+import java.io.Serializable;
+import java.util.List;
+
+@Data
+@ToString
+public class PageResult<T> implements Serializable {
+    // 数据列表 
+    private List<T> items;
+    //总记录数 
+    private long counts;
+    //当前页码 
+    private long page;
+    //每页记录数 
+    private long pageSize;
+
+    public PageResult(List<T> items, long counts, long page, long pageSize) {
+        this.items = items;
+        this.counts = counts;
+        this.page = page;
+        this.pageSize = pageSize;
+    }
+}
+```
+
+我们发现此模型类中定义了List属性，此属性存放数据列表，且支持泛型，课程查询接口的返回类型可 以是此模型类型。 List中的数据类型用什么呢？根据需求分析使用生成的PO类即可，所以课程查询接口返回结果类型如 下：
+
+```java
+//泛型中填写CourseBase类型。 
+ PageResult<CourseBase>
+```
+
+- 接口定义
+
+根据分析，此接口提供 HTTP post协议，查询条件以json格式提交，响应结果为json 格式。 可使用SpringBoot注解在Controller类中实现。
+
+1. 首先在api工程添加依赖
+
+```xml
+<dependencies>
+        <dependency>
+            <groupId>com.xuecheng</groupId>
+            <artifactId>xuecheng-plus-content-model</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xuecheng</groupId>
+            <artifactId>xuecheng-plus-content-service</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+       <!--cloud的基础环境包-->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-context</artifactId>
+        </dependency> <!-- Spring Boot 的 Spring Web MVC 集成 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!-- 排除 Spring Boot 依赖的日志包冲突 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- Spring Boot 集成 log4j2 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-log4j2</artifactId>
+        </dependency>
+        <!-- Spring Boot 集成 swagger -->
+        <dependency>
+            <groupId>com.spring4all</groupId>
+            <artifactId>swagger-spring-boot-starter</artifactId>
+            <version>1.9.0.RELEASE</version>
+        </dependency>
+    </dependencies>
+```
+
+2. 定义controller方法
