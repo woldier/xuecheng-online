@@ -6,14 +6,9 @@ import lombok.extern.java.Log;
 /**
  * @author woldier
  * @version 1.0
- * @description TODO
+ * @description 分页查询通用参数
  * @date 2023/2/14 16:47
  **/
-
-
-/**
- * @description 分页查询通用参数 * @author Mr.M * @date 2022/9/6 14:02 * @version 1.0
- */
 @Data
 @ToString
 public class PageParams {
