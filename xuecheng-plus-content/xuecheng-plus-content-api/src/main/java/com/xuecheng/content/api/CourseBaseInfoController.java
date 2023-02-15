@@ -10,6 +10,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import com.xuecheng.content.model.dto.QueryCourseParamsDto;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * @author woldier
  * @version 1.0
@@ -23,6 +28,12 @@ public class CourseBaseInfoController {
     @PostMapping("/course/list")
     public PageResult<CourseBase> list(PageParams pageParams, @RequestBody
     QueryCourseParamsDto queryCourseParams) {
-        return null;
+        CourseBase courseBase = new CourseBase();
+        courseBase.setName("测试名称");
+        courseBase.setCreateDate(LocalDateTime.now());
+        List<CourseBase> courseBases = new ArrayList();
+        courseBases.add(courseBase);
+        PageResult pageResult = new PageResult<CourseBase>(courseBases,10,1,10);
+        return pageResult;
     }
 }
