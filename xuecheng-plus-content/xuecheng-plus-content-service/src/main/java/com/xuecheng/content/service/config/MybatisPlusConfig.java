@@ -1,6 +1,10 @@
 package com.xuecheng.content.service.config;
 
+import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -12,5 +16,22 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @MapperScan("com.xuecheng.content.service.mapper")
 public class MybatisPlusConfig {
+
+   /**
+   * @description TODO 
+   *  
+   * @return  
+   * @author  
+   * @date  
+   */
+    @Bean
+    public MybatisPlusInterceptor mybatisPlusInterceptor(){
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        /*
+        * 如果有多种数据库方言,就不给定方言,让其自动推理
+        * */
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        return interceptor;
+    }
 
 }
