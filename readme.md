@@ -857,6 +857,8 @@ public class PageResult<T> implements Serializable {
 
 根据分析，此接口提供 HTTP post协议，查询条件以json格式提交，响应结果为json 格式。 可使用SpringBoot注解在Controller类中实现。
 
+![image-20230215094835502](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230215094835502.png)
+
 1. 首先在api工程添加依赖
 
 ```xml
@@ -911,3 +913,750 @@ public class PageResult<T> implements Serializable {
 ```
 
 2. 定义controller方法
+
+```java
+package com.xuecheng.content.api;
+
+import com.xuecheng.base.model.PageParams;
+import com.xuecheng.base.model.PageResult;
+import com.xuecheng.content.model.po.CourseBase;
+//import com.xuecheng.content.model.vo.QueryCourseParamsDto;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+import com.xuecheng.content.model.dto.QueryCourseParamsDto;
+/**
+ * @author woldier
+ * @version 1.0
+ * @description TODO
+ * @date 2023/2/14 17:29
+ **/
+@Api(value = "课程信息编辑接口", tags = "课程信息编辑接口")
+@RestController
+public class CourseBaseInfoController {
+    @ApiOperation("课程查询接口")
+    @PostMapping("/course/list")
+    public PageResult<CourseBase> list(PageParams pageParams, @RequestBody
+    QueryCourseParamsDto queryCourseParams) {
+        return null;
+    }
+}
+
+```
+
+3. 定义启动类
+
+```java
+package com.xuecheng;
+
+import com.spring4all.swagger.EnableSwagger2Doc;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 启动类
+ * @date 2023/2/15 9:34
+ **/
+@SpringBootApplication
+@EnableSwagger2Doc //开启swagger
+public class App {
+    public static void main(String[] args) {
+        SpringApplication.run(App.class, args);
+    }
+}
+
+```
+
+4. 定义配置文件
+
+- `application.yml`
+
+```yml
+server:
+  servlet:
+    context-path: /content # 服务访问根路径
+    port: 63040
+#微服务配置
+spring:
+  application:
+    name: content-api
+# 日志文件配置路径
+logging:
+  config: classpath:log4j2-dev.xml
+
+#swagger 配置
+swagger:
+  title: "学成在线内容管理系统"
+  description: "内容系统管理系统对课程相关信息进行业务管理数据"
+  base-package: com.xuecheng.content #扫描包路径该包及其子包下所有方法和model都会被扫描
+  enabled: true 
+  version: 1.0.0
+```
+
+- `log4j2-dev.xml`
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration monitorInterval="180" packages="">
+    <properties>
+        <property name="logdir">logs</property>
+        <property name="PATTERN">%date{YYYY-MM-dd HH:mm:ss,SSS} %level [%thread][%file:%line] - %msg%n%throwable</property>
+    </properties>
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="${PATTERN}"/>
+        </Console>
+
+        <RollingFile name="ErrorAppender" fileName="${logdir}/error.log"
+            filePattern="${logdir}/$${date:yyyy-MM-dd}/error.%d{yyyy-MM-dd-HH}.log" append="true">
+            <PatternLayout pattern="${PATTERN}"/>
+            <ThresholdFilter level="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true" />
+            </Policies>
+        </RollingFile>
+
+        <RollingFile name="DebugAppender" fileName="${logdir}/info.log"
+            filePattern="${logdir}/$${date:yyyy-MM-dd}/info.%d{yyyy-MM-dd-HH}.log" append="true">
+            <PatternLayout pattern="${PATTERN}"/>
+            <ThresholdFilter level="DEBUG" onMatch="ACCEPT" onMismatch="DENY"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1" modulate="true" />
+            </Policies>
+        </RollingFile>
+        
+        <!--异步appender-->
+         <Async name="AsyncAppender" includeLocation="true">
+            <AppenderRef ref="ErrorAppender"/>
+            <AppenderRef ref="DebugAppender"/>
+        </Async>
+    </Appenders>
+    
+    <Loggers>
+         <!--过滤掉spring和mybatis的一些无用的debug信息-->
+        <logger name="org.springframework" level="INFO">
+        </logger>
+        <logger name="org.mybatis" level="INFO">
+        </logger>
+        <logger name="cn.itcast.wanxinp2p.consumer.mapper" level="DEBUG">
+        </logger>
+
+        <logger name="springfox" level="INFO">
+        </logger>
+		<logger name="org.apache.http" level="INFO">
+        </logger>
+        <logger name="com.netflix.discovery" level="INFO">
+        </logger>
+        
+        <logger name="RocketmqCommon"  level="INFO" >
+		</logger>
+		
+		<logger name="RocketmqRemoting" level="INFO"  >
+		</logger>
+		
+		<logger name="RocketmqClient" level="WARN">
+		</logger>
+
+        <logger name="org.dromara.hmily" level="WARN">
+        </logger>
+
+        <logger name="org.dromara.hmily.lottery" level="WARN">
+        </logger>
+
+        <logger name="org.dromara.hmily.bonuspoint" level="WARN">
+        </logger>
+		
+        <!--OFF   0-->
+        <!--FATAL   100-->
+        <!--ERROR   200-->
+        <!--WARN   300-->
+        <!--INFO   400-->
+        <!--DEBUG   500-->
+        <!--TRACE   600-->
+        <!--ALL   Integer.MAX_VALUE-->
+        <Root level="DEBUG" includeLocation="true">
+            <AppenderRef ref="AsyncAppender"/>
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="DebugAppender"/>
+        </Root>
+    </Loggers>
+</Configuration>
+
+```
+
+运行启动类.
+
+启动工厂,访问http://localhost:63040/content/swagger-ui.html 查看接口信息
+
+![image-20230215095520824](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230215095520824.png)
+
+#### 3.3.2 swagger介绍
+
+上节最后打开的是一个在线的接口文档，它是由Swaager生成的。
+
+什么是Swagger？
+
+​	OpenAPI规范（OpenAPI Specification 简称OAS）是Linux基金会的一个项目，试图通过定义一种用来描述API格式或API定义的语言，来规范RESTful服务开发过程，目前版本是V3.0，并且已经发布并开源在github上。
+
+（https://github.com/OAI/OpenAPI-Specification）
+
+​	Swagger是全球最大的OpenAPI规范（OAS）API开发工具框架，Swagger是一个在线接口文档的生成工具，前后端开发人员依据接口文档进行开发。 (https://swagger.io/)
+
+只要添加Swagger的依赖和配置信息即可使用它。
+
+```xml
+<!-- Spring Boot 集成 swagger -->
+<dependency>
+    <groupId>com.spring4all</groupId>
+    <artifactId>swagger-spring-boot-starter</artifactId>
+</dependency>
+```
+
+在	bootstrap.yml中配置
+
+```yml
+swagger:
+  title: "学成在线内容管理系统"
+  description: "内容系统管理系统对课程相关信息进行业务管理数据"
+  base-package: com.xuecheng.content #扫描包路径该包及其子包下所有方法和model都会被扫描
+  enabled: true
+  version: 1.0.0
+```
+
+base-package为扫描的包路径，扫描Controller类。
+
+Spring Boot 可以集成Swagger，Swaager根据Controller类中的注解生成接口文档 ，在模型类上也可以添加注解对模型类中的属性进行说明，方便对接口文档的阅读。
+
+比如：下边标红的属性名称，可以通过swaager注解标注一个中文名称，方便阅读接口文档。
+
+
+
+标注的方法非常简单：
+
+找到模型类，在属性上添加注解：
+
+分别是`com.xuecheng.base.model.PageParams`和`com.xuecheng.content.model.dto.QueryCourseParamsDto`
+
+```java
+public class PageParams {
+ ...
+ @ApiModelProperty("当前页码")
+private Long pageNo = DEFAULT_PAGE_CURRENT;
+
+@ApiModelProperty("每页记录数默认值")
+private Long pageSize = DEFAULT_PAGE_SIZE;
+...
+public class QueryCourseParamsDto {
+
+  //审核状态
+@ApiModelProperty("审核状态")
+ private String auditStatus;
+ //课程名称
+ @ApiModelProperty("课程名称")
+ private String courseName;
+
+}
+```
+
+![image-20230215102113427](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230215102113427.png)
+
+Swaager的常用注解如下：
+
+在Java类中添加Swagger的注解即可生成Swagger接口，常用Swagger注解如下：
+
+@Api：修饰整个类，描述Controller的作用
+ @ApiOperation：描述一个类的一个方法，或者说一个接口
+ @ApiParam：单个参数描述
+ @ApiModel：用对象来接收参数
+ @ApiModelProperty：用对象接收参数时，描述对象的一个字段
+ @ApiResponse：HTTP响应其中1个描述
+ @ApiResponses：HTTP响应整体描述
+ @ApiIgnore：使用该注解忽略这个API
+ @ApiError ：发生错误返回的信息
+ @ApiImplicitParam：一个请求参数
+ @ApiImplicitParams：多个请求参数
+
+@ApiImplicitParam属性：
+
+| 属性         | 取值   | 作用                                          |
+| ------------ | ------ | --------------------------------------------- |
+| paramType    |        | 查询参数类型                                  |
+|              | path   | 以地址的形式提交数据                          |
+|              | query  | 直接跟参数完成自动映射赋值                    |
+|              | body   | 以流的形式提交 仅支持POST                     |
+|              | header | 参数在request headers 里边提交                |
+|              | form   | 以form表单的形式提交 仅支持POST               |
+| dataType     |        | 参数的数据类型 只作为标志说明，并没有实际验证 |
+|              | Long   |                                               |
+|              | String |                                               |
+| name         |        | 接收参数名                                    |
+| value        |        | 接收参数的意义描述                            |
+| required     |        | 参数是否必填                                  |
+|              | true   | 必填                                          |
+|              | false  | 非必填                                        |
+| defaultValue |        | 默认值                                        |
+
+使用Swagger可以进行接口的测试。
+
+修改接口内容，添加一些测试代码 
+
+```java
+ @ApiOperation("课程查询接口")
+ @PostMapping("/course/list")
+  public PageResult<CourseBase> list(PageParams pageParams, @RequestBody QueryCourseParamsDto queryCourseParams){
+
+      CourseBase courseBase = new CourseBase();
+      courseBase.setName("测试名称");
+      courseBase.setCreateDate(LocalDateTime.now());
+      List<CourseBase> courseBases = new ArrayList();
+      courseBases.add(courseBase);
+      PageResult pageResult = new PageResult<CourseBase>(courseBases,10,1,10);
+      return pageResult;
+  }
+```
+
+debug方式启动，在 return pageResult;处打断点。
+
+再用swagger请求接口。
+
+通过下图可以看到请求参数已经正常传输controller方法
+
+![image-20230215103209926](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230215103209926.png)
+
+放行继续运行，观察swagger界面，结果可以正常返回
+
+![image-20230215103239336](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230215103239336.png)
+
+不过存在一个问题就是LocalDateTime类型的数据转json后数据格式并不是我们要的年月日时分秒
+
+在base工程下添加配置类如下，可从课程资料中直接拷贝。
+
+```java
+package com.xuecheng.base.config;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+/**
+ * @author woldier
+ * @version 1.0
+ * @description
+ *  时间的序列化与反序列化
+ *  base模块怕配置LocalDateTime序列化与反序列化规范成yyyy-MM-dd HH-mm-ss
+ *  并且将其注入到sping容器中，以便其他工程使用（需要注意的是，其他工程的app必须是在com.xuecheng下，否侧无法扫描到）
+ * @date 2023/2/15 10:34
+ **/
+@Configuration
+public class LocalDateTimeConfig {
+    /**
+    * @ 序列化内容
+    *  string -> localDateTIme
+    * @author  woldier
+    *
+    */
+    @Bean
+    public LocalDateTimeSerializer localDateTimeSerializer(){
+        return new LocalDateTimeSerializer(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    }
+
+    @Bean
+    public LocalDateTimeDeserializer localDateTimeDeserializer(){
+        return new LocalDateTimeDeserializer(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    }
+
+    @Bean
+    public Jackson2ObjectMapperBuilderCustomizer jackson2ObjectMapperBuilderCustomizer() {
+        return builder -> {
+            builder.serializerByType(LocalDateTime.class, localDateTimeSerializer());
+            builder.deserializerByType(LocalDateTime.class, localDateTimeDeserializer());
+        };
+    }
+}
+
+```
+
+修改完成,重新启动项目
+
+![image-20230215105007846](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230215105007846.png)
+
+data字段如我们所设置
+
+####  3.3.3 面试
+
+1、SpringBoot接口开发的常用注解有哪些？
+
+@Controller 标记此类是一个控制器，可以返回视图解析器指定的html页面，通过@ResponseBody可以将结果返回json、xml数据。
+
+@RestController 相当于@ResponseBody加 @Controller，实现rest接口开发，返回json数据，不能返回html页面。
+
+@RequestMapping 定义接口地址，可以标记在类上也可以标记在方法上，支持http的post、put、get等方法。
+
+@PostMapping 定义post接口，只能标记在方法上，用于添加记录，复杂条件的查询接口。
+
+@GetMapping 定义get接口，只能标记在方法上，用于查询接口的定义。
+
+@PutMapping 定义put接口，只能标记在方法上，用于修改接口的定义。
+
+@DeleteMapping 定义delete接口，只能标记在方法上，用于删除接口的定义。
+
+@RequestBody 定义在方法上，用于将json串转成java对象。
+
+@PathVarible 接收请求路径中占位符的值.
+
+@ApiOperation swagger注解，对接口方法进行说明。
+
+@Api wagger注解，对接口类进行说明。
+
+@Autowired 基于类型注入。
+
+@Resource 基于名称注入，如果基于名称注入失败转为基于类型注入。
+
+
+
+2、项目的开发流程是什么？
+
+1、产品人员设计产品原型。
+
+2、讨论需求。
+
+3、分模块设计接口。
+
+4、出接口文档。
+
+5、将接口文档给到前端人员，前后端分离开发。
+
+6、开发完毕进行测试。
+
+7、测试完毕发布项目，由运维人员进行部署安装。
+
+### 3.4 业务层开发
+
+#### 3.4.1 DAO开发
+
+业务层为接口层提供业务处理支撑，本项目业务层包括了持久层的代码，一些大型公司的团队职责划分更细，会将持久层和业务层分为两个工程，不过这需要增加成本。
+
+DAO即数据访问对象，通过DAO去访问数据库对数据进行持久化。本项目使用持久层框架MyBatis-Plus进行开发。
+
+由于课程计划功能还没有讲解，这里暂时查询course_base单表数据。
+
+持久层的基础代码我们也采用代码生成工具生成，在前边生成PO类的同时将Mapper接口及xml文件也生成了，如下图：
+
+![image-20230215120530598](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230215120530598.png)
+
+将mapper接口和xml文件拷贝至业务工程`com.xuecheng.content.service.mapper`下。
+
+![image-20230215130335344](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230215130335344.png)
+
+在pom.xml中添加mp支持,mysql支持,以及spring boot test
+
+```xml
+<dependencies>
+        <dependency>
+            <groupId>com.xuecheng</groupId>
+            <artifactId>xuecheng-plus-content-model</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- MySQL 驱动 -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- mybatis plus的依赖 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-boot-starter</artifactId>
+        </dependency>
+        <!-- Spring Boot 集成 Junit -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 排除 Spring Boot 依赖的日志包冲突 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Spring Boot 集成 log4j2 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-log4j2</artifactId>
+        </dependency>
+    </dependencies>
+```
+
+下边搭建单元测试环境 
+
+1、上边已将spring-boot-starter-test加入依赖
+
+2、配置扫描mapper及分页插件
+
+```java
+package com.xuecheng.content.service.config;
+
+import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description mybatis plus 配置类 当前配置了分页插件
+ * @date 2023/2/15 12:13
+ **/
+@Configuration
+@MapperScan("com.xuecheng.content.service.mapper")
+public class MybatisPlusConfig {
+
+   /**
+   * @description TODO 
+   *  
+   * @return  
+   * @author  
+   * @date  
+   */
+    @Bean
+    public MybatisPlusInterceptor mybatisPlusInterceptor(){
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        /*
+        * 如果有多种数据库方言,就不给定方言,让其自动推理
+        * */
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        return interceptor;
+    }
+
+}
+
+```
+
+在内容管理的service工程创建：log4j2-dev.xml、application.yml从课程 资料目录获取
+
+application.yml如下
+
+```yml
+spring:
+  application:
+    name: content-service
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://remote.centos.com:3306/xc_content?serverTimezone=UTC&userUnicode=true&useSSL=false&
+    username: root
+    password: 123456
+# 日志文件配置路径
+logging:
+  config: classpath:log4j2-dev.xml
+```
+
+`log4j2-dev.xml`可从前面的工程拷贝
+
+4、编写测试类
+
+```java
+package com.xuecheng.content;
+
+import com.xuecheng.content.mapper.CourseBaseMapper;
+import com.xuecheng.content.model.po.CourseBase;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程内容测试类
+ * @date 2023/2/15 12:53
+ **/
+@SpringBootTest
+public class CourseBaseMapperTest {
+    @Autowired
+    CourseBaseMapper courseBaseMapper;
+    @Test
+    void testCourseBaseMapper() {
+        CourseBase courseBase = courseBaseMapper.selectById(74L);
+        Assertions.assertNotNull(courseBase);
+    }
+}
+
+```
+
+5、编写启动类
+
+```java
+package com.xuecheng;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description content 服务 启动类
+ * @date 2023/2/15 12:03
+ **/
+@SpringBootApplication
+public class App {
+    public static void main(String[] args) {
+        SpringApplication.run(App.class,args);
+    }
+}
+
+```
+
+#### 3.4.2 service开发
+
+##### 3.4.2.1 数据字典表
+
+课程基本信息查询的主要数据来源是课程基本信息表，这里有一个点需要注意，就是课程的审核状态、发布状态。
+
+审核状态在查询条件和查询结果中都存在，审核状态包括：未审核、审核通过、审核未通过三种，下边思考一个问题：一个课程的审核状态如果是“审核未通过”那么在课程基本信息表记录“审核未通过”三个字合适吗？
+
+如果将“审核未通过”五个字记录在课程基本信息表中，显示出来的审核状态就是“审核未通过”这五个字，看起来没有什么问题，如果有一天客户想要将审核未通过的记录在显示时改为“未通过”三个字，怎么办？
+
+这时你可以需要批量处理数据库中记录了，写一个 update 语句，审核状态等于“审核未通过”的全部更新 为“未通过”。看起来解决了问题，如果有一天客户又让改了呢？
+
+和审核状态同类的有好多这样的信息，比如：课程状态、课程类型、用户类型等等，这一类数据有一个共同点就是它有一些分类项，且这些分类项较为固定。针对这些数据，为了提高系统的可扩展性，专门定义数据字典表去维护。
+
+下边是课程审核状态的定义：
+
+```text
+[
+    {"code":"202001","desc":"审核未通过"},
+    {"code":"202002","desc":"未审核"},
+    {"code":"202003","desc":"审核通过"}
+]
+```
+
+每一项都由代码和名称组成。
+
+此时我们好像要干 什么了 ，该课程 的审核状态为审核未通过，那么我们在课程基本信息表存储202001，也就是审核未通过对应的代码，这样查询出的数据在前端展示时根据代码取出它对应的内容显示给用户。如果用户要修改“审核未通过”的显示内容只需要在数据字典表修改，无法修改课程基本信息表。
+
+数据字典表在系统管理数据库中存储，首先导入系统管理数据库，创建系统管理服务的数据库
+
+表sql文件在资料`day1/资料/db/xcplus_system.sql`路径下
+
+![image-20230215193741914](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230215193741914.png)
+
+导入脚本后成功如下图:
+
+![image-20230215193845407](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230215193845407.png)
+
+##### 3.4.2.2 Service开发
+
+service的代码可以从generate工程中拷贝生成的也可以自己书写
+
+`com.xuecheng.content.service.CourseBaseInfoService`
+
+```java
+package com.xuecheng.content.service;
+
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.xuecheng.base.model.PageParams;
+import com.xuecheng.base.model.PageResult;
+import com.xuecheng.content.model.dto.QueryCourseParamsDto;
+import com.xuecheng.content.model.po.CourseBase;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程基本信息管理业务接口
+ * @date 2023/2/15 20:40
+ **/
+public interface CourseBaseInfoService {
+   /**
+   * @description 课程查询接口 
+   * @param pageParams  分页参数
+    * @param queryCourseParamsDto   查询参数
+   * @return com.xuecheng.base.model.PageResult<com.xuecheng.content.model.po.CourseBase> 
+   * @author: woldier 
+   * @date: 2023/2/15 22:04
+   */
+    PageResult<CourseBase> queryCourseBaseList(PageParams pageParams, QueryCourseParamsDto queryCourseParamsDto);
+}
+
+```
+
+编写接口实现类
+
+```java
+package com.xuecheng.content.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.xuecheng.base.model.PageParams;
+import com.xuecheng.base.model.PageResult;
+import com.xuecheng.content.mapper.CourseBaseMapper;
+import com.xuecheng.content.model.dto.QueryCourseParamsDto;
+import com.xuecheng.content.model.po.CourseBase;
+import com.xuecheng.content.service.CourseBaseInfoService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description TODO
+ * @date 2023/2/15 22:05
+ **/
+@Service
+public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
+    @Autowired
+    private CourseBaseMapper courseBaseMapper;
+
+    /**
+    * @description 课程查询接口的实现
+    * @param pageParams 分页参数
+     * @param queryCourseParamsDto 查询参数
+    * @return com.xuecheng.base.model.PageResult<com.xuecheng.content.model.po.CourseBase>
+    * @author: woldier
+    * @date: 2023/2/15 22:15
+    */
+    @Override
+    public PageResult<CourseBase> queryCourseBaseList(PageParams pageParams, QueryCourseParamsDto queryCourseParamsDto) {
+        LambdaQueryWrapper<CourseBase> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        /*
+        *添加查询条件
+        *对于课程名采用模糊查询 ,其他的采用精确查询 
+        * */
+        lambdaQueryWrapper.like(queryCourseParamsDto.getCourseName()!=null,CourseBase::getName,queryCourseParamsDto.getCourseName())
+                .eq(queryCourseParamsDto.getAuditStatus()!=null,CourseBase::getAuditStatus,queryCourseParamsDto.getAuditStatus())
+                .eq(queryCourseParamsDto.getPublishStatus()!=null,CourseBase::getStatus,queryCourseParamsDto.getPublishStatus());
+        /*初始化分页器*/
+        IPage<CourseBase> page = new Page<>(pageParams.getPageNo(),pageParams.getPageSize());
+        /*分页查询*/
+        IPage<CourseBase> selectPage = courseBaseMapper.selectPage(page, lambdaQueryWrapper);
+        /*获取数据列表*/
+        List<CourseBase> records = selectPage.getRecords();
+        /*获取数据总数*/
+        long total = selectPage.getTotal();
+        /*构造返回集*/
+        return new PageResult<>(records,total, pageParams.getPageNo(), pageParams.getPageSize());
+    }
+}
+
+```
+
