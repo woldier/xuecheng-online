@@ -66,7 +66,7 @@ public class ContentCodeGenerator {
 		// 数据库配置
 		DataSourceConfig dsc = new DataSourceConfig();
 		dsc.setDbType(DbType.MYSQL);
-		dsc.setUrl("jdbc:mysql://121.4.122.56:3307/xc_" + SERVICE_NAME
+		dsc.setUrl("jdbc:mysql://remote.centos.com:3307/xc_" + SERVICE_NAME
 				+ "?serverTimezone=UTC&useUnicode=true&useSSL=false&characterEncoding=utf8");
 //		dsc.setDriverName("com.mysql.jdbc.Driver");
 		dsc.setDriverName("com.mysql.cj.jdbc.Driver");
