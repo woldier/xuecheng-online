@@ -15,10 +15,16 @@ import java.util.List;
 @Api(value = "课程分类相关接口", tags = "课程分类相关接口")
 @RestController
 public class CourseCategoryController {
+    /**
+    * @description 课程分类查询接口
+    *
+    * @return java.util.List<com.xuecheng.content.model.dto.CourseCategoryTreeDto>
+    * @author: woldier
+    * @date: 2023/2/16 19:48
+    */
     @ApiOperation("课程分类查询接口")
     @GetMapping("/course-category/tree-nodes")
     public List<CourseCategoryTreeDto> queryTreeNodes(){
         return null;
-
     }
 }
