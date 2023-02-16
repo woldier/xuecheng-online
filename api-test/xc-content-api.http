@@ -1,0 +1,10 @@
+### 查询所有
+POST {{content_host}}/content/course/list?pageNo=1&pageSize=2
+Content-Type: application/json
+
+{
+  "auditStatus": null,
+  "courseName": "java",
+  "publishStatus": null
+}
+
