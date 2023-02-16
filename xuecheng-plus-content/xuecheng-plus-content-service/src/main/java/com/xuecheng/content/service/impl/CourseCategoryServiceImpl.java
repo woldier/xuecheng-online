@@ -50,7 +50,7 @@ public class CourseCategoryServiceImpl implements CourseCategoryService {
             }
         });
        /*进行filter 过滤掉childList为空的,并且去除根节点*/
-        List<CourseCategoryTreeDto> collect = courseCategoryTreeDtos.stream().filter(e -> e.getChildrenTreeNodes() != null||e.getId()=="1").collect(Collectors.toList());
+        List<CourseCategoryTreeDto> collect = courseCategoryTreeDtos.stream().filter(e -> e.getChildrenTreeNodes() != null&&!e.getId().equals("1")).collect(Collectors.toList());
         return collect;
     }
 }
