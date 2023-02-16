@@ -19,5 +19,6 @@ public class CourseCategoryController {
     @GetMapping("/course-category/tree-nodes")
     public List<CourseCategoryTreeDto> queryTreeNodes(){
         return null;
+
     }
 }
