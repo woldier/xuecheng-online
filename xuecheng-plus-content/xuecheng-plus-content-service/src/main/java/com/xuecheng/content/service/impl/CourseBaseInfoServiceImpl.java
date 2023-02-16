@@ -41,9 +41,9 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         *添加查询条件
         *对于课程名采用模糊查询 ,其他的采用精确查询
         * */
-        lambdaQueryWrapper.like(StringUtils.isEmpty(queryCourseParamsDto.getCourseName()),CourseBase::getName,queryCourseParamsDto.getCourseName())
-                .eq(StringUtils.isEmpty(queryCourseParamsDto.getAuditStatus()),CourseBase::getAuditStatus,queryCourseParamsDto.getAuditStatus())
-                .eq(StringUtils.isEmpty(queryCourseParamsDto.getPublishStatus()),CourseBase::getStatus,queryCourseParamsDto.getPublishStatus());
+        lambdaQueryWrapper.like(!StringUtils.isEmpty(queryCourseParamsDto.getCourseName()),CourseBase::getName,queryCourseParamsDto.getCourseName())
+                .eq(!StringUtils.isEmpty(queryCourseParamsDto.getAuditStatus()),CourseBase::getAuditStatus,queryCourseParamsDto.getAuditStatus())
+                .eq(!StringUtils.isEmpty(queryCourseParamsDto.getPublishStatus()),CourseBase::getStatus,queryCourseParamsDto.getPublishStatus());
         /*初始化分页器*/
         IPage<CourseBase> page = new Page<>(pageParams.getPageNo(),pageParams.getPageSize());
         /*分页查询*/
