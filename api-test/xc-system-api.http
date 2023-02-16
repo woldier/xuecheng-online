@@ -1,0 +1,2 @@
+### 查询所有
+GET {{system_host}}/system/dictionary/all
