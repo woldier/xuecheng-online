@@ -2,6 +2,7 @@ package com.xuecheng.content;
 
 import com.xuecheng.content.mapper.CourseCategoryMapper;
 import com.xuecheng.content.model.dto.CourseCategoryTreeDto;
+import com.xuecheng.content.service.CourseCategoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
@@ -23,11 +24,15 @@ public class CourseCategoryMapperTest {
     @Autowired
     private  CourseCategoryMapper courseCategoryMapper;
 
+    @Autowired
+    private CourseCategoryService courseCategoryService;
 
 
     @Test
     public void testCourseCategoryMapper(){
-        List<CourseCategoryTreeDto> courseCategoryTreeDtos = courseCategoryMapper.selectTreeNodes("1");
-        log.info(courseCategoryTreeDtos.toString());
+//        List<CourseCategoryTreeDto> courseCategoryTreeDtos = courseCategoryMapper.selectTreeNodes("1");
+//        log.info(courseCategoryTreeDtos.toString());
+
+        List<CourseCategoryTreeDto> courseCategoryTreeDtos = courseCategoryService.queryTreeNodes();
     }
 }
