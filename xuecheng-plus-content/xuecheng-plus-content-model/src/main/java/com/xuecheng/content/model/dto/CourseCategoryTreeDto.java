@@ -1,6 +1,7 @@
 package com.xuecheng.content.model.dto;
 
 import com.xuecheng.content.model.po.CourseCategory;
+import lombok.Data;
 
 import java.util.List;
 
@@ -10,6 +11,7 @@ import java.util.List;
  * @description 课程分类树型结点dto
  * @date 2023/2/16 19:38
  **/
+@Data
 public class CourseCategoryTreeDto extends CourseCategory {
     /**
      * 子节点信息
