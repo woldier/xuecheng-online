@@ -577,9 +577,9 @@ pom文件如下
 
 xuecheng-plus-content-api接口工程的父工程是xuecheng-plus-content，它依赖了xuecheng-plusbase基础工程。
 
-### 3.3 接口开发
+### 3.2 课程查询
 
-#### 3.3.1 课程查询
+#### 3.2.1 课程查询
 
 - 需求分析
 
@@ -1094,7 +1094,7 @@ swagger:
 
 ![image-20230215095520824](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230215095520824.png)
 
-#### 3.3.2 swagger介绍
+##### 3.2.2 swagger介绍
 
 上节最后打开的是一个在线的接口文档，它是由Swaager生成的。
 
@@ -1289,7 +1289,7 @@ public class LocalDateTimeConfig {
 
 data字段如我们所设置
 
-####  3.3.3 面试
+#### 3.2.2 面试
 
 1、SpringBoot接口开发的常用注解有哪些？
 
@@ -1337,9 +1337,9 @@ data字段如我们所设置
 
 7、测试完毕发布项目，由运维人员进行部署安装。
 
-### 3.4 业务层开发
+#### 3.2.3 业务层开发
 
-#### 3.4.1 DAO开发
+##### 3.2.3.1 DAO开发
 
 业务层为接口层提供业务处理支撑，本项目业务层包括了持久层的代码，一些大型公司的团队职责划分更细，会将持久层和业务层分为两个工程，不过这需要增加成本。
 
@@ -1524,9 +1524,9 @@ public class App {
 
 ```
 
-#### 3.4.2 service开发
+##### 3.2.3.2 service开发
 
-##### 3.4.2.1 数据字典表
+##### 3.2.3.1 数据字典表
 
 课程基本信息查询的主要数据来源是课程基本信息表，这里有一个点需要注意，就是课程的审核状态、发布状态。
 
@@ -1562,7 +1562,7 @@ public class App {
 
 ![image-20230215193845407](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230215193845407.png)
 
-##### 3.4.2.2 Service开发
+##### 3.2.3.3 Service开发
 
 service的代码可以从generate工程中拷贝生成的也可以自己书写
 
@@ -1660,3 +1660,1144 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
 
 ```
 
+##### 3.2.2.3 接口层完善
+
+```java
+package com.xuecheng.content.api;
+
+import com.xuecheng.base.model.PageParams;
+import com.xuecheng.base.model.PageResult;
+import com.xuecheng.content.model.po.CourseBase;
+//import com.xuecheng.content.model.vo.QueryCourseParamsDto;
+import com.xuecheng.content.service.CourseBaseInfoService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+import com.xuecheng.content.model.dto.QueryCourseParamsDto;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description TODO
+ * @date 2023/2/14 17:29
+ **/
+@Api(value = "课程信息编辑接口", tags = "课程信息编辑接口")
+@RestController
+@RequiredArgsConstructor // lombok bean注入
+public class CourseBaseInfoController {
+    /*
+    通过Lombok生成构造方法进行注入
+     */
+    private final CourseBaseInfoService courseBaseInfoService;
+    @ApiOperation("课程查询接口")
+    @PostMapping("/course/list")
+    public PageResult<CourseBase> list(PageParams pageParams, @RequestBody
+    QueryCourseParamsDto queryCourseParams) {
+        return courseBaseInfoService.queryCourseBaseList(pageParams,queryCourseParams);
+    }
+}
+
+
+```
+
+值得注意的是,content-api的配置文件`bootstrap.yml`中并没有配置数据库信息,但是为什么能启动成功并且访问数据库呢,这是因为content-api依赖了content-service 而service中的配置文件`application.yml`配置了数据库.
+
+除此之外,还应该注意的一点是,这两个配置文件不能重名,重名的话(比如都叫`application.yml `)则会启动失败
+
+![image-20230216090007519](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216090007519.png)
+
+#### 3.2.4 接口测试
+
+##### 3.2.4.1 Httpclient测试
+
+Swagger是一个在线接口文档，虽然使用它也能测试但需要浏览器进入Swagger，最关键的是它并不能保存测试数据。
+
+在IDEA中有一个非常方便的http接口测试工具httpclient，下边介绍它的使用方法，后边我们会用它进行接口测试。
+
+如果IDEA版本较低没有自带httpclient，需要安装httpclient插件
+
+![image-20230216090738005](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216090738005.png)
+
+进入controller类，找到http接口对应的方法
+
+![image-20230216090805827](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216090805827.png)
+
+点击Generate request in HTTP Client即可生成的一个测试用例。
+
+我们可以添加请求参数进行测试
+
+```http
+###
+POST http://localhost:63040/content/course/list?pageNo=2&pageSize=10
+Content-Type: application/json
+
+{
+  "auditStatus": null,
+  "courseName": "java",
+  "publishStatus": null
+}
+```
+
+
+
+```text
+POST http://localhost:63040/content/course/list?pageNo=1&pageSize=2
+
+HTTP/1.1 200 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Thu, 16 Feb 2023 01:12:17 GMT
+Keep-Alive: timeout=60
+Connection: keep-alive
+
+{
+  "items": [
+    {
+      "id": 1,
+      "companyId": 1232141425,
+      "companyName": null,
+      "name": "JAVA8/9/10新特性讲解",
+      "users": "java爱好者,有一定java基础",
+      "tags": "有个java 版本变化的新内容，帮助大家使用最新的思想和工具",
+      "mt": "1",
+      "st": "1-3-2",
+      "grade": "204002",
+      "teachmode": "200002",
+      "description": null,
+      "pic": "https://cdn.educba.com/academy/wp-content/uploads/2018/08/Spring-BOOT-Interview-questions.jpg",
+      "createDate": "2019-09-03 17:48:19",
+      "changeDate": "2022-09-17 16:47:29",
+      "createPeople": "1",
+      "changePeople": null,
+      "auditStatus": "202004",
+      "status": "203001"
+    },
+    {
+      "id": 18,
+      "companyId": 1232141425,
+      "companyName": null,
+      "name": "java零基础入门",
+      "users": "java小白java小白java小白java小白",
+      "tags": "aa",
+      "mt": "1-3",
+      "st": "1-3-2",
+      "grade": "200001",
+      "teachmode": "200002",
+      "description": "java零基础入门java零基础入门java零基础入门java零基础入门",
+      "pic": "/mediafiles/2022/09/13/a16da7a132559daf9e1193166b3e7f52.jpg",
+      "createDate": "2019-09-04 09:56:19",
+      "changeDate": "2022-09-15 17:43:18",
+      "createPeople": null,
+      "changePeople": null,
+      "auditStatus": "202004",
+      "status": "203001"
+    }
+  ],
+  "counts": 6,
+  "page": 1,
+  "pageSize": 2
+}
+<Response body is empty>Response code: 200; Time: 148ms (148 ms); Content length: 971 bytes (971 B)
+```
+
+.http文件即测试用例文档 ，它可以随着项目工程一起保存，这样测试的数据就可以保存下来，方便进行测试。
+
+为了方便保存.http文件 ，我们单独在项目工程的根目录创建一个目录单独存放它们。
+
+![image-20230216091722016](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216091722016.png)
+
+这里的ip与段都都是写死的
+
+为了方便将来和网关集成测试，这里我们把测试主机地址在配置文件`http-client.env.json` 中配置
+
+![image-20230216091846392](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216091846392.png)
+
+注意：文件名称http-client.env.json保持一致，否则无法读取dev环境变量的内容。
+
+再回到xc-content-api.http文件，将http://localhost:63040 用变量代替
+
+![image-20230216092042085](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216092042085.png)
+
+到此就完成了httpclient的配置与使用测试。
+
+##### 3.2.42 安装系统管理服务
+
+要进行前后端连调首先启动前端工程，参考百度网盘的“开发工具配置”文档安装配置前端环境。
+
+启动前端工程成功，如下 图：
+
+![image-20230216092912900](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216092912900.png)
+
+在浏览器访问http://localhost:8601/
+
+浏览器报错
+
+![image-20230216092932132](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216092932132.png)
+
+http://localhost:8601/api/system/dictionary/all 指向的是系统管理服务。在前端讲解内容管理模块的需求时我们提到一个数据字典表，此链接正是在前端请求后端获取数据字典数据的接口地址。
+
+数据字典表中配置了项目用的字典信息，此接口是查询字典中的全部数据 ，在此我们不在开发，按照下边的步骤安装系统管理服务即可。
+
+从课程资料目录获取xuecheng-plus-system.zip，并解压
+
+将xuecheng-plus-system目录拷贝到项目工程根目录，刷新maven，或进入pom.xml右键转为pom工程。
+
+![image-20230216093744109](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216093744109.png)
+
+并且修改service中application.yml mysql的配置信息
+
+启动系统管理服务，启动成功，在浏览器请求：http://localhost:63110/system/dictionary/all
+
+系统服务的端口是63110
+
+果可以正常读取数据字典信息则说明系统管理服务安装成功。
+
+##### 3.2.4.3 解决跨域问题
+
+系统管理服务启动完成，此时还需要修改前端工程中访问数据字典信息接口的地址，因为默认前端工程请求的是网关地址，目前网关工程还没有部署。
+
+![image-20230216094728460](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216094728460.png)
+
+
+
+修改完成，刷新前端工程首页不能正常显示，查看浏览器报错如下：
+
+![image-20230216094800744](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216094800744.png)
+
+提示：从http://localhost:8601访问http://localhost:63110/system/dictionary/all被CORS policy阻止，因为没有Access-Control-Allow-Origin 头信息。CORS全称是 cross origin resource share 表示跨域资源共享。
+
+出这个提示的原因是基于浏览器的同源策略，去判断是否跨域请求，同源策略是浏览器的一种安全机制，从一个地址请求另一个地址，如果协议、主机、端口三者则不是跨域，否则就是跨域请求。
+
+比如：
+
+从http://localhost:8601  到   http://localhost:8602  由于端口不同，是跨域。
+
+从http://192.168.101.10:8601  到   http://192.168.101.11:8601  由于主机不同，是跨域。
+
+从http://192.168.101.10:8601  到   https://192.168.101.11:8601  由于协议不同，是跨域。
+
+注意：服务器之间不存在跨域请求。
+
+浏览器判断是跨域请求会在请求头上添加origin，表示这个请求来源哪里。
+
+比如：
+
+```
+GET / HTTP/1.1
+Origin: http://localhost:8601
+```
+
+服务器收到请求判断这个Origin判断是否允许跨域，如果允许则在响应头中说明允许该来源的跨域请求，如下：
+
+```
+Access-Control-Allow-Origin：http://localhost:8601
+```
+
+如果允许域名来源的跨域请求，则响应如下：
+
+```
+Access-Control-Allow-Origin：*
+```
+
+解决跨域的方法：
+
+1、JSONP
+
+通过script标签的src属性进行跨域请求，如果服务端要响应内容则首先读取请求参数callback的值，callback是一个回调函数的名称，服务端读取callback的值后将响应内容通过调用callback函数的方式告诉请求方。如下图：
+
+![image-20230216095035519](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216095035519.png)
+
+2、添加响应头
+
+服务端在响应头添加 Access-Control-Allow-Origin：*
+
+
+
+3、通过nginx代理跨域
+
+由于服务端之间没有跨域，浏览器通过nginx去访问跨域地址。
+
+![image-20230216095130739](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216095130739.png)
+
+1）浏览器先访问http://192.168.101.10:8601 nginx提供的地址，进入页面
+
+2）此页面要跨域访问http://192.168.101.11:8601 ，不能直接跨域访问http://www.baidu.com:8601  ，而是访问nginx的一个同源地址，比如：http://192.168.101.11:8601/api ，通过http://192.168.101.11:8601/api 的代理去访问http://www.baidu.com:8601。
+
+这样就实现了跨域访问。
+
+浏览器到http://192.168.101.11:8601/api 没有跨域
+
+nginx到http://www.baidu.com:8601通过服务端通信，没有跨域。
+
+
+
+我们准备使用方案2解决跨域问题。在内容管理的api工程config包下编写GlobalCorsConfig.java，代码如下：
+
+```java
+package com.xuecheng.system.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
+
+/**
+ * @description 跨域过虑器
+ * @author Mr.M
+ * @date 2022/9/7 11:04
+ * @version 1.0
+ */
+ @Configuration
+ public class GlobalCorsConfig {
+
+  /**
+   * 允许跨域调用的过滤器
+   */
+  @Bean
+  public CorsFilter corsFilter() {
+   CorsConfiguration config = new CorsConfiguration();
+   //允许白名单域名进行跨域调用
+   config.addAllowedOrigin("*");
+   //允许跨越发送cookie
+   config.setAllowCredentials(true);
+   //放行全部原始头信息
+   config.addAllowedHeader("*");
+   //允许所有请求方法跨域调用
+   config.addAllowedMethod("*");
+   UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+   source.registerCorsConfiguration("/**", config);
+   return new CorsFilter(source);
+  }
+ }
+
+```
+
+此配置类实现了跨域过虑器，在响应头添加Access-Control-Allow-Origin。
+
+重启系统管理服务，前端工程可以正常进入http://localhost:8601，观察浏览器记录，成功解决跨域。
+
+![image-20230216100834949](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216100834949.png)
+
+##### 3.2.4.4 前后端连调
+
+前端启动完毕，再启内容管理服务端。
+
+前端默认连接的是项目的网关地址，由于现在网关工程还没有创建，这里需要更改前端工程的参数配置文件 ，修改网关地址为内容管理服务的地址。
+
+![image-20230216101104354](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216101104354.png)
+
+启动前端工程，用前端访问后端接口，观察前端界面的数据是否正确。
+
+访问前端首页，进入课程管理：http://localhost:8601/#/organization/course-list
+
+![image-20230216102241935](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216102241935.png)
+
+更改课程条件及分页参数测试课程查询列表是否正常显示。
+
+跟踪内容管理服务的输出日志，查看是否正常。
+
+到此基本完成了前后端连调。
+
+#### 3.2.5 面试
+
+1、Mybatis分页插件的原理？
+
+首先分页参数放到ThreadLocal中，拦截执行的sql，根据数据库类型添加对应的分页语句重写sql，例如：(select * from table where a) 转换为 (select count(*) from table where a)和(select * from table where a limit ,)
+
+计算出了total总条数、pageNum当前第几页、pageSize每页大小和当前页的数据，是否为首页，是否为尾页，总页数等。
+
+### 3.2 课程分类查询
+
+#### 3.2.1 需求分析
+
+下边根据内容管理模块的业务流程，下一步要实现新增课程，在新增课程界面，有三处信息需要选择，如下图：
+
+![image-20230216105011893](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216105011893.png)
+
+课程等级、课程类型来源于数据字典表，此部分的信息前端已从系统管理服务读取。
+
+课程分类信息没有在数据字典表中存储，而是由单独一张课程分类表，存储在内容管理数据库中。
+
+![image-20230216105002923](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216105002923.png)
+
+下边看下course_category课程分类表的结构
+
+![image-20230216105050578](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216105050578.png)
+
+这张表是一个树型结构，通过父结点id将各元素组成一个树。
+
+我们可以看下该表的数据，下图是一部分数据：
+
+![image-20230216105113066](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216105113066.png)
+
+现在的需求是需要在内容管理服务中编写一个接口读取该课程分类表的数据，组成一个树型结构返回给前端。
+
+下边生成课程分类的PO类为接口开发作准备。
+
+
+
+![image-20230216105347890](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216105347890.png)
+
+![image-20230216105411650](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216105411650.png)
+
+将生成的po类拷贝到内容管理模块的model工程中，将mapper拷贝到内容管理模块的service工程中。
+
+#### 3.2.2 接口定义
+
+我们可以点击新增课程，观察前端的请求记录：
+
+![image-20230216105542469](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216105542469.png)
+
+http://localhost:8601/api/content/course-category/tree-nodes 该地址正是前端获取课程分类的接口地址。
+
+通过上图界面的内容可以看出该接口的协议为：HTTP GET
+
+请求参数为空。
+
+通过查阅接口文档，此接口要返回全部课程分类，以树型结构返回，如下所示。
+
+```json
+[
+         {
+            "childrenTreeNodes" : [
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-1-1",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "HTML/CSS",
+                  "name" : "HTML/CSS",
+                  "orderby" : 1,
+                  "parentid" : "1-1"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-1-2",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "JavaScript",
+                  "name" : "JavaScript",
+                  "orderby" : 2,
+                  "parentid" : "1-1"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-1-3",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "jQuery",
+                  "name" : "jQuery",
+                  "orderby" : 3,
+                  "parentid" : "1-1"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-1-4",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "ExtJS",
+                  "name" : "ExtJS",
+                  "orderby" : 4,
+                  "parentid" : "1-1"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-1-5",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "AngularJS",
+                  "name" : "AngularJS",
+                  "orderby" : 5,
+                  "parentid" : "1-1"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-1-6",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "ReactJS",
+                  "name" : "ReactJS",
+                  "orderby" : 6,
+                  "parentid" : "1-1"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-1-7",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "Bootstrap",
+                  "name" : "Bootstrap",
+                  "orderby" : 7,
+                  "parentid" : "1-1"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-1-8",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "Node.js",
+                  "name" : "Node.js",
+                  "orderby" : 8,
+                  "parentid" : "1-1"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-1-9",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "Vue",
+                  "name" : "Vue",
+                  "orderby" : 9,
+                  "parentid" : "1-1"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-1-10",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "其它",
+                  "name" : "其它",
+                  "orderby" : 10,
+                  "parentid" : "1-1"
+               }
+            ],
+            "id" : "1-1",
+            "isLeaf" : null,
+            "isShow" : null,
+            "label" : "前端开发",
+            "name" : "前端开发",
+            "orderby" : 1,
+            "parentid" : "1"
+         },
+         {
+            "childrenTreeNodes" : [
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-2-1",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "微信开发",
+                  "name" : "微信开发",
+                  "orderby" : 1,
+                  "parentid" : "1-2"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-2-2",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "iOS",
+                  "name" : "iOS",
+                  "orderby" : 2,
+                  "parentid" : "1-2"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-2-3",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "手游开发",
+                  "name" : "手游开发",
+                  "orderby" : 3,
+                  "parentid" : "1-2"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-2-4",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "Swift",
+                  "name" : "Swift",
+                  "orderby" : 4,
+                  "parentid" : "1-2"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-2-5",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "Android",
+                  "name" : "Android",
+                  "orderby" : 5,
+                  "parentid" : "1-2"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-2-6",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "ReactNative",
+                  "name" : "ReactNative",
+                  "orderby" : 6,
+                  "parentid" : "1-2"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-2-7",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "Cordova",
+                  "name" : "Cordova",
+                  "orderby" : 7,
+                  "parentid" : "1-2"
+               },
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-2-8",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "其它",
+                  "name" : "其它",
+                  "orderby" : 8,
+                  "parentid" : "1-2"
+               }
+            ],
+            "id" : "1-2",
+            "isLeaf" : null,
+            "isShow" : null,
+            "label" : "移动开发",
+            "name" : "移动开发",
+            "orderby" : 2,
+            "parentid" : "1"
+         }
+   ]
+```
+
+上边的数据格式是一个数组结构，数组的元素即为分类信息，分类信息设计两级分类，第一级的分类信息示例如下：
+
+```
+"id" : "1-2",
+"isLeaf" : null,
+"isShow" : null,
+"label" : "移动开发",
+"name" : "移动开发",
+"orderby" : 2,
+"parentid" : "1"
+```
+
+第二级的分类是第一级分类中childrenTreeNodes属性，它是一个数组结构：
+
+```
+{
+"id" : "1-2",
+"isLeaf" : null,
+"isShow" : null,
+"label" : "移动开发",
+"name" : "移动开发",
+"orderby" : 2,
+"parentid" : "1",
+"childrenTreeNodes" : [
+               {
+                  "childrenTreeNodes" : null,
+                  "id" : "1-2-1",
+                  "isLeaf" : null,
+                  "isShow" : null,
+                  "label" : "微信开发",
+                  "name" : "微信开发",
+                  "orderby" : 1,
+                  "parentid" : "1-2"
+               }
+ }
+```
+
+所以，定义一个DTO类表示分类信息的模型类，如下：
+
+```java
+package com.xuecheng.content.model.dto;
+
+import com.xuecheng.content.model.po.CourseCategory;
+
+import java.util.List;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程分类树型结点dto
+ * @date 2023/2/16 19:38
+ **/
+public class CourseCategoryTreeDto extends CourseCategory {
+    /**
+     * 子节点信息
+     */
+    List childrenTreeNodes;
+}
+```
+
+接口定义如下：
+```java
+package com.xuecheng.content.api;
+
+import com.xuecheng.content.model.dto.CourseCategoryTreeDto;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程分类controller
+ * @date 2023/2/16 19:41
+ **/
+@Api(value = "课程分类相关接口", tags = "课程分类相关接口")
+@RestController
+public class CourseCategoryController {
+    @ApiOperation("课程分类查询接口")
+    @GetMapping("/course-category/tree-nodes")
+    public List<CourseCategoryTreeDto> queryTreeNodes(){
+        return null;
+
+    }
+}
+
+```
+
+#### 3.2.3 接口开发
+
+##### 3.2.3.1 树形表查询
+
+课程分类表是一个树型结构，其中parentid字段为父结点ID，它是树型结构的标志字段。
+
+如果树的层级固定可以使用表的自链接去查询，比如：我们只查询两级课程分类，可以用下边的SQL
+
+```sql
+select
+       one.id            one_id,
+       one.name          one_name,
+       one.parentid      one_parentid,
+       one.orderby       one_orderby,
+       one.label         one_label,
+       two.id            two_id,
+       two.name          two_name,
+       two.parentid      two_parentid,
+       two.orderby       two_orderby,
+       two.label         two_label
+   from course_category one
+            inner join course_category two on one.id = two.parentid
+   where one.parentid = 1
+     and one.is_show = 1
+     and two.is_show = 1
+   order by one.orderby,
+            two.orderby
+```
+
+如果树的层级不确定，此时可以使用MySQL递归实现，使用with语法，如下：
+
+```sql
+WITH [RECURSIVE]
+        cte_name [(col_name [, col_name] ...)] AS (subquery)
+        [, cte_name [(col_name [, col_name] ...)] AS (subquery)] ...
+```
+
+cte_name :公共表达式的名称,可以理解为表名,用来表示as后面跟着的子查询
+
+col_name :公共表达式包含的列名,可以写也可以不写
+
+下边是一个递归的简单例子：
+
+```sql
+with RECURSIVE t1  AS
+(
+  SELECT 1 as n
+  UNION ALL
+  SELECT n + 1 FROM t1 WHERE n < 5
+)
+SELECT * FROM t1;
+```
+
+说明：
+
+t1 相当于一个表名
+
+select 1 相当于这个表的初始值，这里使用UNION ALL 将初始值加入到表中。
+
+n<5为递归执行的条件，当n>=5时结束递归调用。
+
+下边我们使用递归实现课程分类的查询
+
+```sql
+with recursive t1 as (
+select * from  course_category p where  id= '1'
+union all
+ select t.* from course_category t inner join t1 on t1.id = t.parentid
+)
+select *  from t1 order by t1.parentid, t1.orderby
+```
+
+![image-20230216202023405](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216202023405.png)
+
+t1表中初始的数据是id等于1的记录，即根结点。
+
+通过inner join t1 t2 on t2.id = t.parentid 找到id='1'的下级节点 。
+
+通过这种方法就找到了id='1'的所有下级节点，下级节点包括了所有层级的节点。
+
+上边这种方法是向下递归，即找到初始节点的所有下级节点。
+
+如何向上递归？
+
+下边的sql实现了向上递归：
+
+```sql
+with recursive t1 as (
+    select * from   course_category p where  id= '1-9-1'
+    union all
+    select * from course_category t inner t1 where t.id = t1.parentid
+)
+select * from t1 order by  t1.parentid
+```
+
+![image-20230216202351563](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216202351563.png)
+
+初始节点为1-9-1，通过递归找到它的父级节点，父级节点包括所有级别的节点。
+
+以上是我们研究了树型表的查询方法，通过递归的方式查询课程分类比较灵活，因为它可以不限制层级
+
+##### 3.2.3.2 开发mapper
+
+下边我们可自定义mapper方法查询课程分类，最终将查询结果映射到List<CourseCategoryTreeDto>中。
+
+生成课程分类表的mapper文件并拷贝至内容管理模块 的service工程中。
+
+![image-20230216205754740](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216205754740.png)
+
+1、下边 定义一个mapper方法，并定义sql语句。
+
+```java
+package com.xuecheng.content.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.xuecheng.content.model.dto.CourseCategoryTreeDto;
+import com.xuecheng.content.model.po.CourseCategory;
+import org.apache.ibatis.annotations.Mapper;
+
+import java.util.List;
+
+/**
+ * <p>
+ * 课程分类 Mapper 接口
+ * </p>
+ *
+ * @author itcast
+ */
+@Mapper
+public interface CourseCategoryMapper extends BaseMapper<CourseCategory> {
+    /**
+    * @description 根据id 查询所有子节点
+    * @param id
+    * @return java.util.List<com.xuecheng.content.model.dto.CourseCategoryTreeDto>
+    * @author: woldier
+    * @date: 2023/2/16 20:38
+    */
+    List<CourseCategoryTreeDto> selectTreeNodes(String id);
+}
+
+```
+
+2、找到对应 的mapper.xml文件，编写sql语句。
+
+```xml
+
+    <select id="selectTreeNodes" resultType="com.xuecheng.content.model.dto.CourseCategoryTreeDto" parameterType="string">
+        with recursive t1 as (
+            select * from  course_category p where  id= #{id}
+            union all
+            select t.* from course_category t inner join t1 on t1.id = t.parentid
+        )
+        select *  from t1 order by t1.parentid, t1.orderby
+    </select>
+
+
+
+```
+
+##### 3.2.3.3 开发service
+
+定义service接口，调用mapper查询课程分类，遍历数据按照接口要求对数据进行封装
+
+```java
+package com.xuecheng.content.service;
+
+import com.xuecheng.content.model.dto.CourseCategoryTreeDto;
+
+import java.util.List;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程分类service
+ * @date 2023/2/16 20:56
+ **/
+public interface CourseCategoryService {
+    List<CourseCategoryTreeDto> queryTreeNodes();
+}
+
+```
+
+编写service接口实现
+
+```java
+package com.xuecheng.content.service.impl;
+
+import com.xuecheng.content.mapper.CourseCategoryMapper;
+import com.xuecheng.content.model.dto.CourseCategoryTreeDto;
+import com.xuecheng.content.service.CourseCategoryService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程分类service 实现
+ * @date 2023/2/16 20:57
+ **/
+@Service
+@RequiredArgsConstructor  //lombok 注入
+public class CourseCategoryServiceImpl implements CourseCategoryService {
+    private final CourseCategoryMapper courseCategoryMapper;
+
+    /**
+     * @return java.util.List<com.xuecheng.content.model.dto.CourseCategoryTreeDto>
+     * @description 递归查询出所有的课程分类
+     * @author: woldier
+     * @date: 2023/2/16 21:00
+     */
+    @Override
+    public List<CourseCategoryTreeDto> queryTreeNodes() {
+        /*从数据库中取出所有的节点*/
+        List<CourseCategoryTreeDto> courseCategoryTreeDtos = courseCategoryMapper.selectTreeNodes("1");
+        /*遍历节点把他们根据tree关系放到返回集中*/
+        /*
+        * 1. 遍历整个list,把每个element加入map中(以id为key).
+        * 2. 查看elem的parentid 如果在map中,取出map中与parentid对应的元素mapElem,并且将其elem加入其childList(如果childList为空新建否则直接插入)
+        * 3. 进行filter 过滤掉childList为空的
+        * */
+        Map<String,CourseCategoryTreeDto> elemMap = new HashMap<>();
+        courseCategoryTreeDtos.stream().forEach(e -> {
+            /* 把每个element加入map中(以id为key).*/
+            elemMap.put(e.getId(),e);
+            /*查看elem的parentid 如果在map中*/
+            if(elemMap.keySet().contains(e.getParentid())){
+                /*取出map中与parentid对应的元素mapElem*/
+                CourseCategoryTreeDto courseCategoryTreeDto = elemMap.get(e.getParentid());
+                /*并且将其elem加入其childList(如果childList为空新建否则直接插入)*/
+                if(courseCategoryTreeDto.getChildrenTreeNodes()==null) courseCategoryTreeDto.setChildrenTreeNodes(new ArrayList<>());
+                courseCategoryTreeDto.getChildrenTreeNodes().add(e);
+            }
+        });
+       /*进行filter 过滤掉childList为空的*/
+        List<CourseCategoryTreeDto> collect = courseCategoryTreeDtos.stream().filter(e -> e.getChildrenTreeNodes() != null).collect(Collectors.toList());
+        return collect;
+    }
+}
+
+```
+
+##### 3.2.3.4 单元测试
+
+```java
+package com.xuecheng.content;
+
+import com.xuecheng.content.mapper.CourseCategoryMapper;
+import com.xuecheng.content.model.dto.CourseCategoryTreeDto;
+import com.xuecheng.content.service.CourseCategoryService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.util.List;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 测试
+ * @date 2023/2/16 20:42
+ **/
+@SpringBootTest
+@Slf4j
+public class CourseCategoryMapperTest {
+
+    @Autowired
+    private  CourseCategoryMapper courseCategoryMapper;
+
+    @Autowired
+    private CourseCategoryService courseCategoryService;
+
+
+    @Test
+    public void testCourseCategoryMapper(){
+//        List<CourseCategoryTreeDto> courseCategoryTreeDtos = courseCategoryMapper.selectTreeNodes("1");
+//        log.info(courseCategoryTreeDtos.toString());
+
+        List<CourseCategoryTreeDto> courseCategoryTreeDtos = courseCategoryService.queryTreeNodes();
+    }
+}
+
+```
+
+#### 3.2.4 接口测试
+
+##### 3.2.4.1 接口层代码完善
+
+完善controller方法，注入service调用业务层方法查询课程分类。
+
+```java
+package com.xuecheng.content.api;
+
+import com.xuecheng.content.model.dto.CourseCategoryTreeDto;
+import com.xuecheng.content.service.CourseCategoryService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程分类controller
+ * @date 2023/2/16 19:41
+ **/
+@Api(value = "课程分类相关接口", tags = "课程分类相关接口")
+@RestController
+@RequiredArgsConstructor
+public class CourseCategoryController {
+    private final CourseCategoryService courseCategoryService;
+    /**
+    * @description 课程分类查询接口
+    *
+    * @return java.util.List<com.xuecheng.content.model.dto.CourseCategoryTreeDto>
+    * @author: woldier
+    * @date: 2023/2/16 19:48
+    */
+    @ApiOperation("课程分类查询接口")
+    @GetMapping("/course-category/tree-nodes")
+    public List<CourseCategoryTreeDto> queryTreeNodes(){
+        return courseCategoryService.queryTreeNodes();
+    }
+}
+
+```
+
+##### 3.2.4.2 接口层代码完善
+
+![image-20230216220007269](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216220007269.png)
+
+运行测试。
+
+完成前后端连调：
+
+打开前端工程，进入新增课程页面。
+
+课程分类下拉框可以正常显示
+
+![image-20230216221124792](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230216221124792.png)
+
+#### 3.2.5 面试
+
+1、树型表的标记字段是什么？如何查询MySQL树型表？
+
+树型表的标记字段是parentid即父结点的id。
+
+查询一个树型表的方法：
+
+1）当层级固定时可以用表的自链接进行查询。
+
+2）如果想灵活查询每个层级可以使用mysql递归方法，使用with RECURSIVE 实现。
+
+
+
+2、MyBatis的ResultType和ResultMap的区别？
+
+ResultType：指定映射类型，只要查询的字段名和类型的属性名匹配可以自动映射。
+
+ResultMap：自定义映射规则，当查询的字段名和映射类型的属性不匹配时可以通过ResultMap自定义映射规则，也可以实现一对多、一对一映射。
+
+
+
+3、#{} 和 ${} 有什么区别？
+
+\#{}是标记一个占位符，可以防止sql注入。
+
+${} 用于在动态 sql中拼接字符串，可能导致sql注入。
+
+### 3.3 新增课程
+
+#### 3.3.1 需求分析
+
+##### 3.3.1.1 业务流程
+
+根据前边对内容管理模块的数据模型分析，课程相关的信息有：课程基本信息、课程营销信息、课程图片信息、课程计划、课程师资信息，所以新增一门课程需要完成这几部分信息的填写。
+
+以下是业务流程：
+
+1、进入课程查询列表
+
+![image-20230217091837712](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230217091837712.png)
+
+2、点击添加课程，选择课程类型是直播还是录播。
+
+![image-20230217091855010](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230217091855010.png)
+
+课程类型不同课程的授课方式不同。
+
+3、选择完毕，点击下一步，进入课程基本信息添加界面。
+
+本界面分两部分信息，一部分是课程基本信息上，一部分是课程营销信息。
+
+课程基本信息：
+
+![image-20230217091920331](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230217091920331.png)
+
+在这个界面中填写课程的基本信息、课程营销信息上。
+
+填写完毕，保存并进行下一步。
+
+4、在此界面填写课程计划信息
+
+![image-20230217092146141](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230217092146141.png)
+
+课程计划即课程的大纲目录。
+
+课程计划分为两级，章节和小节。
+
+每个小节需要上传课程视频，用户点击 小节的标题即开始播放视频。
+
+如果是直播课程则会进入直播间。
+
+5、课程 计划填写完毕进入课程师资的管理。
+
+![image-20230217092200789](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230217092200789.png)
+
+在课程师资界面维护该课程的授课老师。
+
+![image-20230217092215582](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230217092215582.png)
+
+至此，一门课程新增完成。
+
+##### 3.3.1.2 数据模型
+
+![image-20230217095829780](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230217095829780.png)
+
+这两部分信息分别在course_base、course_market两张表存储。当点击保存按钮时向这两张表插入数据。这两张表是一对一关联关系。
+
+![image-20220915180825089](D:\bat\IdeaProjects\xuecheng-online\imgs\image-20220915180825089.png)
+
+![image-20230217095844923](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230217095844923.png)
+
+新建课程的初始审核状态为“未提交”、初始发布状态为“未发布”。
+
+####  3.3.2 接口定义
