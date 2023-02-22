@@ -10,3 +10,11 @@ Content-Type: application/json
 
 ### 查询课程分类
 GET  {{content_host}}/content//course-category/tree-nodes
+
+### 课程新增
+POST {{content_host}}/content/course
+Content-Type: application/json
+
+{
+
+}
