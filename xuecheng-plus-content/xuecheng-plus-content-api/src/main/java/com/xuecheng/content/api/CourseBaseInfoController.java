@@ -44,9 +44,10 @@ public class CourseBaseInfoController {
     @PostMapping("/course")
     public CourseBaseInfoDto createCourseBase(@RequestBody AddCourseDto addCourseDto){
         /*1.获取用户所属公司id*/
-
+        //机构id，由于认证系统没有上线暂时硬编码
+        Long companyId = 22L;
         /*2.call 新增课程service*/
-        return courseBaseInfoService.addCourse(null,null);
+        return courseBaseInfoService.addCourse(companyId,addCourseDto);
 
     }
 
