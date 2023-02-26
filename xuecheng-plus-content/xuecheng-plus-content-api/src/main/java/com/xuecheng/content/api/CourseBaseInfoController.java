@@ -43,7 +43,11 @@ public class CourseBaseInfoController {
     @ApiOperation("新增课程接口")
     @PostMapping("/course")
     public CourseBaseInfoDto createCourseBase(@RequestBody AddCourseDto addCourseDto){
-        return null;
+        /*1.获取用户所属公司id*/
+
+        /*2.call 新增课程service*/
+        return courseBaseInfoService.addCourse(null,null);
+
     }
 
 }
