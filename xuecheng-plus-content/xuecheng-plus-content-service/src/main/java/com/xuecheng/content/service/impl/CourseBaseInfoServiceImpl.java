@@ -132,6 +132,8 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         //组装营销课程信息
         CourseMarket courseMarket = new CourseMarket();
         BeanUtils.copyProperties(dto,courseMarket);
+        courseMarket.setOriginalPrice(dto.getOriginalPrice().floatValue());
+        courseMarket.setPrice(dto.getPrice().floatValue());
         //设置id
         courseMarket.setId(courseBaseId);
         int insert1 = courseMarketMapper.insert(courseMarket);
@@ -161,8 +163,8 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
             BeanUtils.copyProperties(courseMarket,courseBaseInfoDto);
         CourseCategory courseCategoryMt = courseCategoryMapper.selectById(courseBaseInfoDto.getMt());
         CourseCategory courseCategorySt = courseCategoryMapper.selectById(courseBaseInfoDto.getSt());
-        courseBaseInfoDto.setMt(courseCategoryMt.getName());
-        courseBaseInfoDto.setMt(courseCategorySt.getName());
+        courseBaseInfoDto.setMtName(courseCategoryMt.getName());
+        courseBaseInfoDto.setStName(courseCategorySt.getName());
         return courseBaseInfoDto;
     }
 }
