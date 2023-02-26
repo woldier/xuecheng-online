@@ -6,9 +6,13 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xuecheng.base.model.PageParams;
 import com.xuecheng.base.model.PageResult;
 import com.xuecheng.content.mapper.CourseBaseMapper;
+import com.xuecheng.content.mapper.CourseMarketMapper;
+import com.xuecheng.content.model.dto.AddCourseDto;
+import com.xuecheng.content.model.dto.CourseBaseInfoDto;
 import com.xuecheng.content.model.dto.QueryCourseParamsDto;
 import com.xuecheng.content.model.po.CourseBase;
 import com.xuecheng.content.service.CourseBaseInfoService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -22,10 +26,12 @@ import java.util.List;
  * @date 2023/2/15 22:05
  **/
 @Service
+@RequiredArgsConstructor
 public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
-    @Autowired
-    private CourseBaseMapper courseBaseMapper;
-
+    /*spring 注入*/
+    private final CourseBaseMapper courseBaseMapper;
+    /*spring 注入*/
+    private final CourseMarketMapper courseMarketMapper;
     /**
     * @description 课程查询接口的实现
     * @param pageParams 分页参数
@@ -54,5 +60,18 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         long total = selectPage.getTotal();
         /*构造返回集*/
         return new PageResult<>(records,total, pageParams.getPageNo(), pageParams.getPageSize());
+    }
+
+    /**
+     * @description 新增课程
+     * @param companyId 公司id
+     * @param addCourseDto  课程信息
+     * @return com.xuecheng.content.model.dto.CourseBaseInfoDto 返回课程基本信息及营销信息
+     * @author: woldier
+     * @date: 2023/2/22 11:14
+     */
+    @Override
+    public CourseBaseInfoDto addCourse(Long companyId, AddCourseDto addCourseDto) {
+        return null;
     }
 }
