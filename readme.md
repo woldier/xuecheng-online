@@ -2801,3 +2801,427 @@ ${} 用于在动态 sql中拼接字符串，可能导致sql注入。
 新建课程的初始审核状态为“未提交”、初始发布状态为“未发布”。
 
 ####  3.3.2 接口定义
+
+根据业务流程，这里先定义提交课程基本信息的接口。
+
+1、接口协议 ：HTTP POST，Content-Type为application/json
+
+2、请求及响应结果如下
+
+![image-20230222101541341](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230222101541341.png)
+
+![image-20230222101602798](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230222101602798.png)
+
+3、接口请求示例如下 
+
+```http
+### 创建课程
+POST {{content_host}}/content/course
+Content-Type: application/json
+
+{
+
+  "mt": "",
+  "st": "",
+  "name": "",
+  "pic": "",
+  "teachmode": "200002",
+  "users": "初级人员",
+  "tags": "",
+  "grade": "204001",
+  "description": "",
+  "objectives": "",
+  "charge": "201000",
+  "price": 0,
+  "originalPrice":0,
+  "qq": "",
+  "wechat": "",
+  "phone": "",
+  "validDays": 365
+}
+
+###响应结果如下
+#成功响应结果如下
+{
+  "id": 109,
+  "companyId": 1,
+  "companyName": null,
+  "name": "测试课程103",
+  "users": "初级人员",
+  "tags": "",
+  "mt": "1-1",
+  "mtName": null,
+  "st": "1-1-1",
+  "stName": null,
+  "grade": "204001",
+  "teachmode": "200002",
+  "description": "",
+  "pic": "",
+  "createDate": "2022-09-08 07:35:16",
+  "changeDate": null,
+  "createPeople": null,
+  "changePeople": null,
+  "auditStatus": "202002",
+  "status": 1,
+  "coursePubId": null,
+  "coursePubDate": null,
+  "charge": "201000",
+  "price": null,
+  "originalPrice":0,
+  "qq": "",
+  "wechat": "",
+  "phone": "",
+  "validDays": 365
+}
+```
+
+请求参数相比 CourseBase模型类不一致，需要定义
+
+```java
+package com.xuecheng.content.model.dto;
+
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Size;
+import java.math.BigDecimal;
+
+/**
+ * @description 添加课程dto
+ * @author Mr.M
+ * @date 2022/9/7 17:40
+ * @version 1.0
+ */
+@Data
+@ApiModel(value="AddCourseDto", description="新增课程基本信息")
+public class AddCourseDto {
+
+ @NotEmpty(message = "课程名称不能为空")
+ @ApiModelProperty(value = "课程名称", required = true)
+ private String name;
+
+ @NotEmpty(message = "适用人群不能为空")
+ @Size(message = "适用人群内容过少",min = 10)
+ @ApiModelProperty(value = "适用人群", required = true)
+ private String users;
+
+ @ApiModelProperty(value = "课程标签")
+ private String tags;
+
+ @NotEmpty(message = "课程分类不能为空")
+ @ApiModelProperty(value = "大分类", required = true)
+ private String mt;
+
+ @NotEmpty(message = "课程分类不能为空")
+ @ApiModelProperty(value = "小分类", required = true)
+ private String st;
+
+ @NotEmpty(message = "课程等级不能为空")
+ @ApiModelProperty(value = "课程等级", required = true)
+ private String grade;
+
+ @ApiModelProperty(value = "教学模式（普通，录播，直播等）", required = true)
+ private String teachmode;
+
+ @ApiModelProperty(value = "课程介绍")
+ private String description;
+
+ @ApiModelProperty(value = "课程图片", required = true)
+ private String pic;
+
+ @NotEmpty(message = "收费规则不能为空")
+ @ApiModelProperty(value = "收费规则，对应数据字典", required = true)
+ private String charge;
+
+ @ApiModelProperty(value = "价格")
+ private BigDecimal price;
+ @ApiModelProperty(value = "原价")
+ private BigDecimal originalPrice;
+
+
+ @ApiModelProperty(value = "qq")
+ private String qq;
+
+ @ApiModelProperty(value = "微信")
+ private String wechat;
+ @ApiModelProperty(value = "电话")
+ private String phone;
+
+ @ApiModelProperty(value = "有效期")
+ private Integer validDays;
+}
+
+```
+
+
+
+
+
+```java
+package com.xuecheng.content.model.dto;
+
+import com.xuecheng.content.model.po.CourseBase;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+
+import java.math.BigDecimal;
+
+/**
+ * @description 课程基本信息dto
+ * @author Mr.M
+ * @date 2022/9/7 17:44
+ * @version 1.0
+ */
+@Data
+public class CourseBaseInfoDto extends CourseBase {
+
+
+ /**
+  * 收费规则，对应数据字典
+  */
+ private String charge;
+
+ /**
+  * 价格
+  */
+ private Float price;
+
+
+ /**
+  * 原价
+  */
+ private Float originalPrice;
+
+ /**
+  * 咨询qq
+  */
+ private String qq;
+
+ /**
+  * 微信
+  */
+ private String wechat;
+
+ /**
+  * 电话
+  */
+ private String phone;
+
+ /**
+  * 有效期天数
+  */
+ private Integer validDays;
+
+ /**
+  * 大分类名称
+  */
+ private String mtName;
+
+ /**
+  * 小分类名称
+  */
+ private String stName;
+
+}
+
+```
+
+4、定义接口如下
+
+```java
+@ApiOperation("新增课程基础信息")
+@PostMapping("/course")
+public CourseBaseInfoDto createCourseBase(@RequestBody AddCourseDto addCourseDto){
+    return null;
+}
+```
+
+#### 3.3.3 接口开发
+
+定义service方法
+
+```java
+public interface CourseBaseInfoService {
+ /**
+    * @description 新增课程
+    * @param companyId 公司id
+     * @param addCourseDto  课程信息
+    * @return com.xuecheng.content.model.dto.CourseBaseInfoDto 返回课程基本信息及营销信息
+    * @author: woldier
+    * @date: 2023/2/22 11:14
+    */
+    CourseBaseInfoDto addCourse(Long companyId, AddCourseDto addCourseDto);
+}
+```
+
+定义serviceImpl方法实现
+
+```java
+@Service
+@RequiredArgsConstructor
+public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
+/**
+     * @description 新增课程
+     * @param companyId 公司id
+     * @param dto  课程信息
+     * @return com.xuecheng.content.model.dto.CourseBaseInfoDto 返回课程基本信息及营销信息
+     * @author: woldier
+     * @date: 2023/2/22 11:14
+     */
+    @Override
+    @Transactional
+    public CourseBaseInfoDto addCourse(Long companyId, AddCourseDto dto) {
+
+        /*1.参数合法性校验*/
+//合法性校验
+        if (StringUtils.isEmpty(dto.getName())) {
+            throw new RuntimeException("课程名称为空");
+        }
+
+        if (StringUtils.isEmpty(dto.getMt())) {
+            throw new RuntimeException("课程分类为空");
+        }
+
+        if (StringUtils.isEmpty(dto.getSt())) {
+            throw new RuntimeException("课程分类为空");
+        }
+
+        if (StringUtils.isEmpty(dto.getGrade())) {
+            throw new RuntimeException("课程等级为空");
+        }
+
+        if (StringUtils.isEmpty(dto.getTeachmode())) {
+            throw new RuntimeException("教育模式为空");
+        }
+
+        if (StringUtils.isEmpty(dto.getUsers())) {
+            throw new RuntimeException("适应人群为空");
+        }
+
+        if (StringUtils.isEmpty(dto.getCharge())) {
+            throw new RuntimeException("收费规则为空");
+        }
+        /*2.数据封装调用mapper持久化数据*/
+        CourseBase insertCourseBase = new CourseBase();
+        //数据拷贝
+        BeanUtils.copyProperties(dto,insertCourseBase);
+        //设置审核状态
+        insertCourseBase.setAuditStatus("202002");
+        //设置发布状态
+        insertCourseBase.setStatus("203001");
+        //机构id
+        insertCourseBase.setCompanyId(companyId);
+        //添加时间
+        insertCourseBase.setCreateDate(LocalDateTime.now());
+        //插入课程基本信息表
+        int insert = courseBaseMapper.insert(insertCourseBase);
+
+        //得到插入数据的id
+        Long courseBaseId = insertCourseBase.getId();
+
+        //组装营销课程信息
+        CourseMarket courseMarket = new CourseMarket();
+        BeanUtils.copyProperties(dto,courseMarket);
+        //设置id
+        courseMarket.setId(courseBaseId);
+        int insert1 = courseMarketMapper.insert(courseMarket);
+        String charge = dto.getCharge();
+        if("201001".equals(charge)) //如果为收费课程,扣费规则不能为空
+            if(courseMarket.getPrice() == null)
+                throw new RuntimeException("本课程为收费课程,但是价格为空");
+
+        /*两张表有一张插入不成功则进行事务回滚*/
+        if(insert1<=0||insert<=0)
+            throw new RuntimeException("添加课程失败");
+        /*3.组装返回结果*/
+        return getCourseBaseInfo(courseBaseId);
+    }
+
+    public CourseBaseInfoDto getCourseBaseInfo(long courseId){
+        /*查询课程*/
+        CourseBase courseBase = courseBaseMapper.selectById(courseId);
+        if(courseBase==null)
+            return null;
+        /*查询课程营销信息*/
+        CourseMarket courseMarket = courseMarketMapper.selectById(courseId);
+        /*创建返回的dto*/
+        CourseBaseInfoDto courseBaseInfoDto = new CourseBaseInfoDto();
+        BeanUtils.copyProperties(courseBase,courseBaseInfoDto);
+        if(courseMarket!=null)
+            BeanUtils.copyProperties(courseMarket,courseBaseInfoDto);
+        CourseCategory courseCategoryMt = courseCategoryMapper.selectById(courseBaseInfoDto.getMt());
+        CourseCategory courseCategorySt = courseCategoryMapper.selectById(courseBaseInfoDto.getSt());
+        courseBaseInfoDto.setMtName(courseCategoryMt.getName());
+        courseBaseInfoDto.setStName(courseCategorySt.getName());
+        return courseBaseInfoDto;
+    }
+}
+```
+
+
+
+完善controller方法
+
+```java
+@ApiOperation("新增课程基础信息")
+@PostMapping("/course")
+public CourseBaseInfoDto createCourseBase(@RequestBody AddCourseDto addCourseDto){
+    //机构id，由于认证系统没有上线暂时硬编码
+    Long companyId = 22L;
+  return courseBaseInfoService.createCourseBase(companyId,addCourseDto);
+}
+```
+
+#### 3.3.4 接口测试
+
+1、使用httpclient测试
+
+在xc-content-api.http中定义：
+
+```http
+### 课程新增
+POST {{content_host}}/content/course
+Content-Type: application/json
+
+{
+  "charge": "201000",
+  "price": 0,
+  "originalPrice":0,
+  "qq": "22333",
+  "wechat": "223344",
+  "phone": "13333333",
+  "validDays": 365,
+  "mt": "1-1",
+  "st": "1-1-1",
+  "name": "测试课程103",
+  "pic": "",
+  "teachmode": "200002",
+  "users": "初级人员",
+  "tags": "",
+  "grade": "204001",
+  "description": "",
+  "objectives": ""
+}
+```
+
+#### 3.3.5 前后端联调
+
+打开新增课程页面，除了课程图片其它信息全部输入。
+
+点击保存，观察浏览器请求接口参数及响应结果是否正常。
+
+#### 
+
+![](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230226201541433.png)
+
+
+
+![image-20230226201700012](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230226201700012.png)
+
+
+
+
+
+#### 3.3.6 异常处理
