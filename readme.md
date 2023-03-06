@@ -3225,3 +3225,650 @@ Content-Type: application/json
 
 
 #### 3.3.6 异常处理
+
+##### 3.3.6.1 异常问题分析
+
+在service方法中有很多的参数合法性校验，当参数不合法则抛出异常，下边我们测试下异常处理。
+
+请求创建课程基本信息，故意将必填项设置为空。
+
+测试发现报500异常，如下：
+
+```http
+http://localhost:63040/content/course
+
+HTTP/1.1 500 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Wed, 07 Sep 2022 11:40:29 GMT
+Connection: close
+
+{
+  "timestamp": "2022-09-07T11:40:29.677+00:00",
+  "status": 500,
+  "error": "Internal Server Error",
+  "message": "",
+  "path": "/content/course"
+}
+```
+
+![image-20230306145427810](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230306145427810.png)
+
+问题：并没有输出我们抛出异常时指定的异常信息。
+
+所以，现在我们的需求是当正常操作时按接口要求返回数据，当非正常流程时要获取异常信息进行记录，并提示给用户。
+
+异常处理除了输出在日志中，还需要提示给用户，前端和后端需要作一些约定：
+
+1、错误提示信息统一以json格式返回给前端。
+
+2、以HTTP状态码决定当前是否出错，非200为操作异常。
+
+如何规范异常信息？
+
+代码中统一抛出项目的自定义异常类型，这样可以统一去捕获这一类或几类的异常。
+
+规范了异常类型就可以去获取异常信息。
+
+如果捕获了非项目自定义的异常类型统一向用户提示“执行过程异常，请重试”的错误信息。
+
+如何捕获异常？
+
+代码统一用try/catch方式去捕获代码比较臃肿，可以通过SpringMVC提供的控制器增强类统一由一个类去完成异常的捕获。
+
+如下图：
+
+![image-20230306145731652](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230306145731652.png)
+
+
+
+##### 3.3.6.2 统一异常处理实现
+
+根据上边分析的方案，统一在base基础工程实现统一异常处理，各模块依赖了base基础工程都 可以使用。
+
+首先在base基础工程添加需要依赖的包：
+
+```xml
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-web</artifactId>
+</dependency>
+
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-log4j2</artifactId>
+</dependency>
+```
+
+1、定义一些通用的异常信息
+
+从课程资料目录下的exception目录拷贝CommonError枚举类到base工程。
+
+```java
+package com.xuecheng.base.exception;
+
+import java.util.Arrays;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 通用的错误信息枚举类
+ * @date 2023/3/6 15:01
+ **/
+public enum CommonError {
+    UNKOWN_ERROR("执行过程异常，请重试。"),
+    PARAMS_ERROR("非法参数"),
+    OBJECT_NULL("对象为空"),
+    QUERY_NULL("查询结果为空"),
+    REQUEST_NULL("请求参数为空");
+
+    private String errMessage;
+
+    public String getErrMessage() {
+        return errMessage;
+    }
+
+    private CommonError( String errMessage) {
+        this.errMessage = errMessage;
+    }
+
+    /**
+    * @description 使用方法案例
+    * @param args
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/6 15:04
+    */
+    public static void main(String[] args) {
+        System.out.println(CommonError.PARAMS_ERROR.getErrMessage());
+    }
+}
+
+```
+
+2、自定义异常类型
+
+```java
+package com.xuecheng.base.exception;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 学成项目的自定义业务异常类
+ * @date 2023/3/6 15:06
+ **/
+public class XueChengPlusException extends Exception{
+    private static final long serialVersionUID = 5565760508056698922L;
+
+    private String errMessage;
+
+    public XueChengPlusException() {
+        super();
+    }
+
+    public XueChengPlusException(String errMessage) {
+        super(errMessage);
+        this.errMessage = errMessage;
+    }
+
+    public String getErrMessage() {
+        return errMessage;
+    }
+
+    /**
+    * @description 优雅化代码，使得抛异常的代码更加简洁
+    * @param commonError  传入通用异常枚举 如 CommonError.UNKOWN_ERROR
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/6 15:08
+    */
+    public static void cast(CommonError commonError) throws XueChengPlusException {
+        throw new XueChengPlusException(commonError.getErrMessage());
+    }
+    /**
+    * @description 优雅化代码，使得抛异常的代码更加简洁
+    * @param errMessage  传入自定义的报错信息
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/6 15:09
+    */
+    public static void cast(String errMessage) throws XueChengPlusException {
+        throw new XueChengPlusException(errMessage);
+    }
+}
+
+```
+
+3、响应用户的统一类型
+
+注意： 这里的异常返回类中只有`errMessage`属性,其状态码使用的时http状态码;其实在实际开发中，通常异常返回类还包括状态码属性,而对于http状态码都统一成`200`.此处因为项目前端已经固定好了格式,所以我们就按照项目原有的方式进行实现.
+
+```java
+package com.xuecheng.base.exception;
+
+import java.io.Serializable;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 客户端异常返回信息类
+ * @date 2023/3/6 15:12
+ **/
+public class RestErrorResponse implements Serializable {
+    private String errMessage;
+
+    public RestErrorResponse(String errMessage){
+        this.errMessage= errMessage;
+    }
+
+    public String getErrMessage() {
+        return errMessage;
+    }
+
+    public void setErrMessage(String errMessage) {
+        this.errMessage = errMessage;
+    }
+}
+
+```
+
+4、全局异常处理器
+
+从 Spring 3.0 - Spring 3.2 版本之间，对 Spring 架构和 SpringMVC 的Controller 的异常捕获提供了相应的异常处理。
+
+- @ExceptionHandler
+
+  Spring3.0提供的标识在方法上或类上的注解，用来表明方法的处理异常类型。
+
+- @ControllerAdvice
+
+  Spring3.2提供的新注解，从名字上可以看出大体意思是控制器增强，	在项目中来增强SpringMVC中的Controller。通常和**`@ExceptionHandler`** 结合使用，来处理SpringMVC的异常信息。
+
+- @ResponseStatus
+
+  Spring3.0提供的标识在方法上或类上的注解，用状态代码和应返回的原因标记方法或异常类。
+  调用处理程序方法时，状态代码将应用于HTTP响应。
+
+通过上面的两个注解便可实现微服务端全局异常处理，具体代码如下：
+
+```java
+package com.xuecheng.base.exception;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 全局异常处理器
+ * @date 2023/3/6 15:18
+ **/
+@ControllerAdvice
+@Slf4j
+public class GlobalExceptionHandler {
+    /**
+    * @description XueChengPlusException.class 异常处理，提取异常信息并且返回
+    * @param e
+    * @return com.xuecheng.base.exception.RestErrorResponse
+    * @author: woldier
+    * @date: 2023/3/6 15:22
+    */
+    @ExceptionHandler(XueChengPlusException.class)
+    @ResponseBody
+    @ResponseStatus(code = HttpStatus.INTERNAL_SERVER_ERROR, reason = "业务模块抛出异常")
+    public RestErrorResponse doXueChengPlusException(XueChengPlusException e){
+        return new RestErrorResponse(e.getErrMessage());
+    }
+
+    /**
+    * @description Exception 异常处理，此异常为未知异常
+    * @param e
+    * @return com.xuecheng.base.exception.RestErrorResponse
+    * @author: woldier
+    * @date: 2023/3/6 15:27
+    */
+    @ExceptionHandler(Exception.class)
+    @ResponseBody
+    @ResponseStatus(code = HttpStatus.INTERNAL_SERVER_ERROR, reason = "服务器未知异常")
+    public RestErrorResponse doXueChengPlusException(Exception e){
+        log.error(e.getMessage());
+        e.printStackTrace();
+        return new RestErrorResponse(CommonError.UNKOWN_ERROR.getErrMessage());
+    }
+}
+
+```
+
+##### 3.3.6.3 异常处理测试
+
+由于content-api依赖了content-model而content-model又依赖了base因此content-api间接依赖了base不用在content-api中再添加该依赖
+
+![image-20230306153329059](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230306153329059.png)
+
+在异常处理测试之前首先在代码中抛出自定义类型的异常，这里以新增课程`com.xuecheng.content.service.impl.CourseBaseInfoServiceImpl`的service方法为例进行代码修改。
+
+```java
+@Override
+ public CourseBaseInfoDto createCourseBase(Long companyId,AddCourseDto dto) {
+ ...
+//合法性校验
+  if (StringUtils.isBlank(dto.getName())) {
+   throw new XueChengPlusException("课程名称为空");
+  }
+
+  if (StringUtils.isBlank(dto.getMt())) {
+   throw new XueChengPlusException("课程分类为空");
+  }
+
+  if (StringUtils.isBlank(dto.getSt())) {
+   throw new XueChengPlusException("课程分类为空");
+  }
+
+  if (StringUtils.isBlank(dto.getGrade())) {
+   throw new XueChengPlusException("课程等级为空");
+  }
+
+  if (StringUtils.isBlank(dto.getTeachmode())) {
+   throw new XueChengPlusException("教育模式为空");
+  }
+
+  if (StringUtils.isBlank(dto.getUsers())) {
+   throw new XueChengPlusException("适应人群");
+  }
+
+  if (StringUtils.isBlank(dto.getCharge())) {
+   throw new XueChengPlusException("收费规则为空");
+  }
+  。。。
+    if ("201001".equals(charge)) {
+   BigDecimal price = dto.getPrice();
+   if (ObjectUtils.isEmpty(price)) {
+    throw new XueChengPlusException("收费课程价格不能为空");
+   }
+   courseMarketNew.setPrice(dto.getPrice().floatValue());
+  }
+```
+
+1、首先使用httpclient测试
+
+请求新增课程接口，故意将必填项课程名称设置为空。
+
+测试结果与预期一致，可以捕获异常并响应异常信息，如下：
+
+```htt
+http://localhost:63040/content/course
+
+HTTP/1.1 500 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Wed, 07 Sep 2022 13:17:14 GMT
+Connection: close
+
+{
+  "errMessage": "课程名称为空。"
+}
+```
+
+
+
+2、前后端调试
+
+仍然测试新增课程接口，当课程收费的时候必须填写价格，这里设置课程为收费，价格设置-1。
+
+![image-20230306160216728](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230306160216728.png)
+
+至此，项目异常处理的测试完毕，我们在开发中对于业务分支中错误的情况要抛出项目自定义的异常类型。
+
+##### 3.3.6.4 面试
+
+1、系统如何处理异常？
+
+我们自定义一个统一的异常处理器去捕获并处理异常。
+
+使用控制器增加注解@ControllerAdvice和异常处理注解@ExceptionHandler来实现。
+
+1) 处理自定义异常
+
+程序在编写代码时根据校验结果主动抛出自定义异常类对象，抛出异常时指定详细的异常信息，异常处理器捕获异常信息记录异常日志并响应给用户。
+
+2) 处理未知异常
+
+接口执行过程中的一些运行时异常也会由异常处理器统一捕获，记录异常日志，统一响应给用户500错误。
+
+在异常处理器中还可以针对某个异常类型进行单独处理。
+
+
+
+#### 3.3.7 JSR303校验
+
+##### 3.3.7.1 统一校验需求
+
+前端请求后端接口传输参数，是在controller中校验还是在Service中校验？
+
+答案是都需要校验，只是分工不同。
+
+Contoller中校验请求参数的合法性，包括：必填项校验，数据格式校验，比如：是否是符合一定的日期格式，等。
+
+Service中要校验的是业务规则相关的内容，比如：课程已经审核通过所以提交失败。
+
+Service中根据业务规则去校验不方便写成通用代码，Controller中则可以将校验的代码写成通用代码。
+
+早在JavaEE6规范中就定义了参数校验的规范，它就是JSR-303，它定义了Bean Validation，即对bean属性进行校验。
+
+SpringBoot提供了JSR-303的支持，它就是spring-boot-starter-validation，它的底层使用Hibernate Validator，Hibernate Validator是Bean Validation 的参考实现。
+
+所以，我们准备在Controller层使用spring-boot-starter-validation完成对请求参数的基本合法性进行校验。
+
+##### 3.3.7.2 统一校验实现
+
+首先在Base工程添加spring-boot-starter-validation的依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
+```
+
+现在准备对内容管理模块添加课程接口`com.xuecheng.content.api.CourseBaseInfoController`进行参数校验，如下接口
+
+```java
+@ApiOperation("新增课程接口")
+    @PostMapping("/course")
+    public CourseBaseInfoDto createCourseBase(@RequestBody @Validated AddCourseDto addCourseDto) throws XueChengPlusException {
+        /*1.获取用户所属公司id*/
+        //机构id，由于认证系统没有上线暂时硬编码
+        Long companyId = 22L;
+        /*2.call 新增课程service*/
+        return courseBaseInfoService.addCourse(companyId,addCourseDto);
+
+    }
+```
+
+此接口使用AddCourseDto模型对象接收参数，所以进入AddCourseDto类，在属性上添加校验规则。
+
+```java
+package com.xuecheng.content.model.dto;
+
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Size;
+import java.math.BigDecimal;
+
+/**
+ * @description 添加课程dto
+ * @author Mr.M
+ * @date 2022/9/7 17:40
+ * @version 1.0
+ */
+@Data
+@ApiModel(value="AddCourseDto", description="新增课程基本信息")
+public class AddCourseDto {
+
+ @NotEmpty(message = "课程名称不能为空")
+ @ApiModelProperty(value = "课程名称", required = true)
+ private String name;
+
+ @NotEmpty(message = "适用人群不能为空")
+ @Size(message = "适用人群内容过少",min = 10)
+ @ApiModelProperty(value = "适用人群", required = true)
+ private String users;
+
+ @ApiModelProperty(value = "课程标签")
+ private String tags;
+
+ @NotEmpty(message = "课程分类不能为空")
+ @ApiModelProperty(value = "大分类", required = true)
+ private String mt;
+
+ @NotEmpty(message = "课程分类不能为空")
+ @ApiModelProperty(value = "小分类", required = true)
+ private String st;
+
+ @NotEmpty(message = "课程等级不能为空")
+ @ApiModelProperty(value = "课程等级", required = true)
+ private String grade;
+
+ @ApiModelProperty(value = "教学模式（普通，录播，直播等）", required = true)
+ private String teachmode;
+
+ @ApiModelProperty(value = "课程介绍")
+ private String description;
+
+ @ApiModelProperty(value = "课程图片", required = true)
+ private String pic;
+
+ @NotEmpty(message = "收费规则不能为空")
+ @ApiModelProperty(value = "收费规则，对应数据字典", required = true)
+ private String charge;
+
+ @ApiModelProperty(value = "价格")
+ private BigDecimal price;
+ @ApiModelProperty(value = "原价")
+ private BigDecimal originalPrice;
+
+
+ @ApiModelProperty(value = "qq")
+ private String qq;
+
+ @ApiModelProperty(value = "微信")
+ private String wechat;
+ @ApiModelProperty(value = "电话")
+ private String phone;
+
+ @ApiModelProperty(value = "有效期")
+ private Integer validDays;
+}
+
+```
+
+上边用到了@NotEmpty和@Size两个注解，@NotEmpty表示属性不能为空，@Size表示限制属性内容的长短。
+
+在javax.validation.constraints包下有很多这样的校验注解
+
+![image-20230306172641815](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230306172641815.png)
+
+规则如下：
+
+![image-20230306172748117](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230306172748117.png)
+
+定义好校验规则还需要开启校验，在controller方法中添加@Validated注解，如下：
+
+```java
+@ApiOperation("新增课程基础信息")
+@PostMapping("/course")
+public CourseBaseInfoDto createCourseBase(@RequestBody @Validated AddCourseDto addCourseDto){
+    //机构id，由于认证系统没有上线暂时硬编码
+    Long companyId = 1L;
+  return courseBaseInfoService.createCourseBase(companyId,addCourseDto);
+}
+```
+
+如果校验出错Spring会抛出MethodArgumentNotValidException异常，我们需要在`base项目`统一异常处理器中捕获异常，解析出异常信息。
+
+代码 如下：
+
+```java
+/**
+    * @description Controller JSR303校验异常
+    * @param e
+    * @return com.xuecheng.base.exception.RestErrorResponse
+    * @author: woldier
+    * @date: 2023/3/6 16:46
+    */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseBody
+    @ResponseStatus(code = HttpStatus.INTERNAL_SERVER_ERROR)
+    public RestErrorResponse doMethodArgumentNotValidException(MethodArgumentNotValidException e){
+        BindingResult bindingResult = e.getBindingResult();
+        StringBuffer errMsg = new StringBuffer();
+
+        List<FieldError> fieldErrors = bindingResult.getFieldErrors();
+        fieldErrors.forEach(error -> {
+            errMsg.append(error.getDefaultMessage()).append(",");
+        });
+        log.error(errMsg.toString());
+        return new RestErrorResponse(errMsg.toString());
+    }
+```
+
+重启内容管理服务。
+
+使用httpclient进行测试，将必填项设置为空，“适用人群” 属性的内容设置1个字。
+
+执行测试，接口响应结果如下：
+
+```json
+{
+  "errMessage": "课程名称不能为空 课程分类不能为空 课程分类不能为空 适用人群内容过少 "
+}
+```
+
+可以看到校验器生效。
+
+##### 3.3.7.3 分组校验
+
+有时候在同一个属性上设置一个校验规则不能满足要求，比如：订单编号由系统生成，在添加订单时要求订单编号为空，在更新 订单时要求订单编写不能为空。此时就用到了分组校验，同一个属性定义多个校验规则属于不同的分组，比如：添加订单定义@NULL规则属于insert分组，更新订单定义@NotEmpty规则属于update分组，insert和update是分组的名称，是可以修改的。
+
+下边举例说明
+
+我们用class类型来表示不同的分组，所以我们定义不同的接口类型（空接口）表示不同的分组，由于校验分组是公用的，所以定义在 base工程中。如下：
+
+```java
+package com.xuecheng.base.execption;
+ /**
+ * @description 校验分组
+ * @author Mr.M
+ * @date 2022/9/8 15:05
+ * @version 1.0
+ */
+public class ValidationGroups {
+
+ public interface Inster{};
+ public interface Update{};
+ public interface Delete{};
+
+}
+```
+
+下边在定义校验规则时指定分组：
+
+```java
+@NotEmpty(groups = {ValidationGroups.Inster.class},message = "添加课程名称不能为空")
+ @NotEmpty(groups = {ValidationGroups.Update.class},message = "修改课程名称不能为空")
+// @NotEmpty(message = "课程名称不能为空")
+ @ApiModelProperty(value = "课程名称", required = true)
+ private String name;
+```
+
+在Controller方法中启动校验规则指定要使用的分组名：
+
+```java
+@ApiOperation("新增课程接口")
+    @PostMapping("/course")
+    public CourseBaseInfoDto createCourseBase(@RequestBody @Validated({ValidationGroups.Inster.class}) AddCourseDto addCourseDto) throws XueChengPlusException {
+        /*1.获取用户所属公司id*/
+        //机构id，由于认证系统没有上线暂时硬编码
+        Long companyId = 22L;
+        /*2.call 新增课程service*/
+        return courseBaseInfoService.addCourse(companyId,addCourseDto);
+
+    }
+```
+
+再次测试，由于这里指定了Insert分组，所以抛出 异常信息：添加课程名称不能为空。
+
+如果修改分组为ValidationGroups.Update.class，异常信息为：修改课程名称不能为空。
+
+>
+>
+>如果时加了group信息,若某属性校验没有组信息则不会进行校验
+
+##### 3.3.7.4 校验规则不满足？
+
+如果javax.validation.constraints包下的校验规则满足不了需求怎么办？
+
+1、手写校验代码 。
+
+2、自定义校验规则注解。
+
+参考blog 
+
+https://blog.csdn.net/blueheart20/article/details/88817334
+
+https://blog.csdn.net/qq_43437874/article/details/117229391
+
+
+
+##### 3.3.7.5 面试
+
+1、请求参数的合法性校验如何做？ 
+
+使用基于JSR303的校验框架实现，SpringBoot提供了JSR-303的支持，它就是spring-boot-starter-validation，它包括了很多校验规则，只需要在模型类中通过注解指定校验规则，在controller方法上开启校验。
