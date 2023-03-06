@@ -78,8 +78,8 @@ public class CourseBaseInfoController {
     @ApiOperation("修改课程接口")
     @PutMapping("/course")
     public CourseBaseInfoDto ModifyCourseBase(@RequestBody @Validated({ValidationGroups.Update.class}) EditCourseDto editCourseDto) throws XueChengPlusException {
-        Long companyId = 11L;
-        return courseBaseInfoService.updateCourseBase(companyId,editCourseDto);
+        Long companyId = 22L;
+        return courseBaseInfoService.updateCourseBase(companyId, editCourseDto);
     }
 
 
