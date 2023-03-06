@@ -1,6 +1,7 @@
 package com.xuecheng.content.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.base.model.PageParams;
 import com.xuecheng.base.model.PageResult;
 import com.xuecheng.content.model.dto.AddCourseDto;
@@ -33,5 +34,5 @@ public interface CourseBaseInfoService {
     * @author: woldier
     * @date: 2023/2/22 11:14
     */
-    CourseBaseInfoDto addCourse(Long companyId, AddCourseDto addCourseDto);
+    CourseBaseInfoDto addCourse(Long companyId, AddCourseDto addCourseDto) throws XueChengPlusException;
 }

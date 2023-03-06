@@ -3,6 +3,7 @@ package com.xuecheng.content.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.base.model.PageParams;
 import com.xuecheng.base.model.PageResult;
 import com.xuecheng.content.mapper.CourseBaseMapper;
@@ -80,36 +81,43 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
      */
     @Override
     @Transactional
-    public CourseBaseInfoDto addCourse(Long companyId, AddCourseDto dto) {
+    public CourseBaseInfoDto addCourse(Long companyId, AddCourseDto dto) throws XueChengPlusException {
 
         /*1.参数合法性校验*/
 //合法性校验
         if (StringUtils.isEmpty(dto.getName())) {
-            throw new RuntimeException("课程名称为空");
+            //throw new RuntimeException("课程名称为空");
+            XueChengPlusException.cast("课程名称为空");
         }
 
         if (StringUtils.isEmpty(dto.getMt())) {
-            throw new RuntimeException("课程分类为空");
+            //throw new RuntimeException("课程分类为空");
+            XueChengPlusException.cast("课程分类为空");
         }
 
         if (StringUtils.isEmpty(dto.getSt())) {
-            throw new RuntimeException("课程分类为空");
+            //throw new RuntimeException("课程分类为空");
+            XueChengPlusException.cast("课程分类为空");
         }
 
         if (StringUtils.isEmpty(dto.getGrade())) {
-            throw new RuntimeException("课程等级为空");
+            //throw new RuntimeException("课程等级为空");
+            XueChengPlusException.cast("课程等级为空");
         }
 
         if (StringUtils.isEmpty(dto.getTeachmode())) {
-            throw new RuntimeException("教育模式为空");
+            //throw new RuntimeException("教育模式为空");
+            XueChengPlusException.cast("教育模式为空");
         }
 
         if (StringUtils.isEmpty(dto.getUsers())) {
-            throw new RuntimeException("适应人群为空");
+            //throw new RuntimeException("适应人群为空");
+            XueChengPlusException.cast("适应人群为空");
         }
 
         if (StringUtils.isEmpty(dto.getCharge())) {
-            throw new RuntimeException("收费规则为空");
+            //throw new RuntimeException("收费规则为空");
+            XueChengPlusException.cast("收费规则为空");
         }
         /*2.数据封装调用mapper持久化数据*/
         CourseBase insertCourseBase = new CourseBase();
@@ -139,12 +147,14 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         int insert1 = courseMarketMapper.insert(courseMarket);
         String charge = dto.getCharge();
         if("201001".equals(charge)) //如果为收费课程,扣费规则不能为空
-            if(courseMarket.getPrice() == null)
-                throw new RuntimeException("本课程为收费课程,但是价格为空");
+            if(courseMarket.getPrice() == null|| courseMarket.getPrice() <0.0)
+                //throw new RuntimeException("本课程为收费课程,但是价格为空");
+                XueChengPlusException.cast("本课程为收费课程,但是价格为空");
 
         /*两张表有一张插入不成功则进行事务回滚*/
         if(insert1<=0||insert<=0)
-            throw new RuntimeException("添加课程失败");
+            //throw new RuntimeException("添加课程失败");
+            XueChengPlusException.cast("添加课程失败");
         /*3.组装返回结果*/
         return getCourseBaseInfo(courseBaseId);
     }
