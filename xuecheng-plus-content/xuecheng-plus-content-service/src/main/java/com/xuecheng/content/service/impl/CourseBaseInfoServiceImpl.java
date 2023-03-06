@@ -11,11 +11,13 @@ import com.xuecheng.content.mapper.CourseCategoryMapper;
 import com.xuecheng.content.mapper.CourseMarketMapper;
 import com.xuecheng.content.model.dto.AddCourseDto;
 import com.xuecheng.content.model.dto.CourseBaseInfoDto;
+import com.xuecheng.content.model.dto.EditCourseDto;
 import com.xuecheng.content.model.dto.QueryCourseParamsDto;
 import com.xuecheng.content.model.po.CourseBase;
 import com.xuecheng.content.model.po.CourseCategory;
 import com.xuecheng.content.model.po.CourseMarket;
 import com.xuecheng.content.service.CourseBaseInfoService;
+import com.xuecheng.content.service.CourseMarketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +44,7 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
 
     private final CourseCategoryMapper courseCategoryMapper;
 
+    private final CourseMarketService courseMarketService;
     /**
      * @param pageParams           分页参数
      * @param queryCourseParamsDto 查询参数
@@ -147,10 +150,8 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         courseMarket.setId(courseBaseId);
         int insert1 = courseMarketMapper.insert(courseMarket);
         String charge = dto.getCharge();
-        if ("201001".equals(charge)) //如果为收费课程,扣费规则不能为空
-            if (courseMarket.getPrice() == null || courseMarket.getPrice() < 0.0)
-                //throw new RuntimeException("本课程为收费课程,但是价格为空");
-                XueChengPlusException.cast("本课程为收费课程,但是价格为空");
+        /*查看是否收费,收费校验价格是否合法*/
+        checkCharge(courseMarket.getPrice(), charge);
 
         /*两张表有一张插入不成功则进行事务回滚*/
         if (insert1 <= 0 || insert <= 0)
@@ -158,6 +159,13 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
             XueChengPlusException.cast("添加课程失败");
         /*3.组装返回结果*/
         return getCourseBaseInfo(courseBaseId);
+    }
+
+    private static void checkCharge(Float price, String charge) throws XueChengPlusException {
+        if ("201001".equals(charge)) //如果为收费课程,扣费规则不能为空
+            if (price == null || price < 0.0)
+                //throw new RuntimeException("本课程为收费课程,但是价格为空");
+                XueChengPlusException.cast("本课程为收费课程,但是价格为空");
     }
 
 
@@ -168,7 +176,8 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
      * @author: woldier
      * @date: 2023/3/6 20:13
      */
-    public CourseBaseInfoDto getCourseBaseInfo(long courseId) {
+    @Override
+    public CourseBaseInfoDto getCourseBaseInfo(Long courseId) {
         /*查询课程*/
         CourseBase courseBase = courseBaseMapper.selectById(courseId);
         if (courseBase == null)
@@ -185,5 +194,45 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         courseBaseInfoDto.setMtName(courseCategoryMt.getName());
         courseBaseInfoDto.setStName(courseCategorySt.getName());
         return courseBaseInfoDto;
+    }
+
+    /**
+     * @param companyId     该课程所对应的公司id
+     * @param editCourseDto 修改的课程信息
+     * @return com.xuecheng.content.model.dto.CourseBaseInfoDto
+     * @description 修改课程基本信息
+     * @author: woldier
+     * @date: 2023/3/6 20:19
+     */
+    @Override
+    @Transactional
+    public CourseBaseInfoDto updateCourseBase(Long companyId, EditCourseDto editCourseDto) throws XueChengPlusException {
+        /*1.查询数据库 看是否存在课程*/
+        /*得到id*/
+        Long id = editCourseDto.getId();
+        CourseBase courseBase = courseBaseMapper.selectById(id);
+        /*2.若为空抛出异常*/
+        if(courseBase==null)
+            XueChengPlusException.cast("课程不存在");
+        /*2.1 不为空检查companyId是否一致,不一致抛出*/
+        if(!courseBase.getCompanyId().equals(companyId))
+            XueChengPlusException.cast("companyId是不一致");
+        /*更新courseBase信息*/
+        /*拷贝*/
+        BeanUtils.copyProperties(editCourseDto,courseBase);
+
+        courseBase.setChangeDate(LocalDateTime.now());
+        courseBaseMapper.updateById(courseBase);
+
+        /*更新营销信息*/
+        CourseMarket courseMarket = new CourseMarket();
+        BeanUtils.copyProperties(editCourseDto,courseMarket);
+        checkCharge(courseMarket.getPrice(), editCourseDto.getCharge());
+        courseMarketService.saveOrUpdate(courseMarket);
+
+        /*查询封装返回*/
+        return getCourseBaseInfo(editCourseDto.getId());
+
+
     }
 }
