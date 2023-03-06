@@ -35,4 +35,14 @@ public interface CourseBaseInfoService {
     * @date: 2023/2/22 11:14
     */
     CourseBaseInfoDto addCourse(Long companyId, AddCourseDto addCourseDto) throws XueChengPlusException;
+
+
+    /**
+    * @description 根据id查询课程基本信息
+    * @param courseId
+    * @return com.xuecheng.content.model.dto.CourseBaseInfoDto
+    * @author: woldier
+    * @date: 2023/3/6 20:13
+    */
+     CourseBaseInfoDto getCourseBaseInfo(long courseId);
 }
