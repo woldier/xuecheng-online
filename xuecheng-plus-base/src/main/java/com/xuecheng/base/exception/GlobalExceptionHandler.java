@@ -2,10 +2,15 @@ package com.xuecheng.base.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
+
+import java.util.List;
 
 /**
  * @author woldier
@@ -44,5 +49,27 @@ public class GlobalExceptionHandler {
         log.error(e.getMessage());
         e.printStackTrace();
         return new RestErrorResponse(CommonError.UNKOWN_ERROR.getErrMessage());
+    }
+
+    /**
+    * @description Controller JSR303校验异常
+    * @param e
+    * @return com.xuecheng.base.exception.RestErrorResponse
+    * @author: woldier
+    * @date: 2023/3/6 16:46
+    */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseBody
+    @ResponseStatus(code = HttpStatus.INTERNAL_SERVER_ERROR)
+    public RestErrorResponse doMethodArgumentNotValidException(MethodArgumentNotValidException e){
+        BindingResult bindingResult = e.getBindingResult();
+        StringBuffer errMsg = new StringBuffer();
+
+        List<FieldError> fieldErrors = bindingResult.getFieldErrors();
+        fieldErrors.forEach(error -> {
+            errMsg.append(error.getDefaultMessage()).append(",");
+        });
+        log.error(errMsg.toString());
+        return new RestErrorResponse(errMsg.toString());
     }
 }
