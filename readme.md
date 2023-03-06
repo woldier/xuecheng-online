@@ -3872,3 +3872,469 @@ https://blog.csdn.net/qq_43437874/article/details/117229391
 1、请求参数的合法性校验如何做？ 
 
 使用基于JSR303的校验框架实现，SpringBoot提供了JSR-303的支持，它就是spring-boot-starter-validation，它包括了很多校验规则，只需要在模型类中通过注解指定校验规则，在controller方法上开启校验。
+
+### 3.4 修改课程
+
+#### 3.4.1 需求分析
+
+##### 3.4.1.1 业务流程
+
+1、进入课程列表查询
+
+![image-20230306191206404](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230306191206404.png)
+
+2、点击编辑
+
+因为课程审核通过方可发布，任何时候都 可以编辑，下图是编辑课程的界面：
+
+
+
+进入编辑界面显示出当前课程的信息。
+
+3、修改成功自动进入课程计划编辑页面。
+
+##### 3.4.1.2 数据模型
+
+修改课程的涉及到的数据表是课程基本信息表,课程营销信息表：
+
+![image-20230306193550619](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230306193550619.png)
+
+1、进入课程编辑界面
+
+界面中显示了课程的当前信息，需要根据课程id查询课程基本和课程营销信息，显示在表单上。
+
+2、编辑、提交
+
+修改课程提交的数据比新增课程多了一项课程id，因为修改课程需要针对某个课程进行修改。
+
+3、保存数据
+
+编辑完成保存课程基础信息和课程营销信息。
+
+更新课程基本信息表中的修改人、修改时间。
+
+#### 3.4.2 接口定义
+
+##### 3.4.2.1 查询课程信息
+
+定义根据课程id查询课程信息接口。
+
+接口示例如下：
+
+```http
+GET /content/course/40
+Content-Type: application/json
+#响应结果
+#{
+#  "id": 40,
+#  "companyId": 1232141425,
+#  "companyName": null,
+#  "name": "SpringBoot核心",
+#  "users": "Spring Boot初学者",
+#  "tags": "Spring项目的快速构建",
+#  "mt": "1-3",
+#  "mtName": null,
+#  "st": "1-3-2",
+#  "stName": null,
+#  "grade": "200003",
+#  "teachmode": "201001",
+#  "description": "课程系统性地深度探讨 Spring Boot 核心特性，引导小伙伴对 Java 规范的重视，启发对技术原理性的思考，掌握排查问题的技能，以及学习阅读源码的方法和技巧，全面提升研发能力，进军架构师队伍。",
+#  "pic": "https://cdn.educba.com/academy/wp-content/uploads/2018/08/Spring-BOOT-Interview-questions.jpg",
+#  "createDate": "2019-09-10 16:05:39",
+#  "changeDate": "2022-09-09 07:27:48",
+#  "createPeople": null,
+#  "changePeople": null,
+#  "auditStatus": "202004",
+#  "status": "203001",
+#  "coursePubId": 21,
+#  "coursePubDate": null,
+#  "charge": "201001",
+#  "price": 0.01
+#}
+```
+
+查询结果为单条课程信息，内容和新增课程返回结果一致，所以采用与新增课程一致的模型类。
+
+接口定义如下：
+
+```java
+/**
+    * @description 根据id查询课程信息
+    * @param courseId  课程id
+    * @return com.xuecheng.content.model.dto.CourseBaseInfoDto
+    * @author: woldier
+    * @date: 2023/3/6 19:27
+    */
+    @ApiOperation("查询单个课程接口")
+    @GetMapping("/course/{courseId}")
+    public CourseBaseInfoDto getCourseBaseInfoById(@PathVariable Long courseId){
+        return null;
+    }
+```
+
+##### 3.4.2.2 修改课程信息
+
+根据前边的数据模型分析，修改课程提交的数据比新增多了课程id，接口示例如下：
+
+```http
+### 修改课程
+PUT /content/course
+Content-Type: application/json
+
+{
+  "id": 40,
+  "companyName": null,
+  "name": "SpringBoot核心",
+  "users": "Spring Boot初学者",
+  "tags": "Spring项目的快速构建",
+  "mt": "1-3",
+  "st": "1-3-2",
+  "grade": "200003",
+  "teachmode": "201001",
+  "description": "课程系统性地深度探讨 Spring Boot 核心特性，引导小伙伴对 Java 规范的重视，启发对技术原理性的思考，掌握排查问题的技能，以及学习阅读源码的方法和技巧，全面提升研发能力，进军架构师队伍。",
+  "pic": "https://cdn.educba.com/academy/wp-content/uploads/2018/08/Spring-BOOT-Interview-questions.jpg",
+  "charge": "201001",
+  "price": 0.01
+}
+
+###修改成功响应结果如下
+#{
+#  "id": 40,
+#  "companyId": 1232141425,
+#  "companyName": null,
+#  "name": "SpringBoot核心",
+#  "users": "Spring Boot初学者",
+#  "tags": "Spring项目的快速构建",
+#  "mt": "1-3",
+#  "mtName": null,
+#  "st": "1-3-2",
+#  "stName": null,
+#  "grade": "200003",
+#  "teachmode": "201001",
+#  "description": "课程系统性地深度探讨 Spring Boot 核心特性，引导小伙伴对 Java 规范的重视，启发对技术原理性的思考，掌握排查问题的技能，以及学习阅读源码的方法和技巧，全面提升研发能力，进军架构师队伍。",
+#  "pic": "https://cdn.educba.com/academy/wp-content/uploads/2018/08/Spring-BOOT-Interview-questions.jpg",
+#  "createDate": "2019-09-10 16:05:39",
+#  "changeDate": "2022-09-09 07:27:48",
+#  "createPeople": null,
+#  "changePeople": null,
+#  "auditStatus": "202004",
+#  "status": "203001",
+#  "coursePubId": 21,
+#  "coursePubDate": null,
+#  "charge": "201001",
+#  "price": 0.01
+#}
+```
+
+这里定义修改课程提交的数据模型。
+
+```java
+package com.xuecheng.content.model.dto;
+
+import com.xuecheng.base.exception.ValidationGroups;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 修改课程基本信息所要使用的请求参数dto
+ * @date 2023/3/6 19:33
+ **/
+@Data
+@ApiModel(value = "EditCourseDto", description = "修改课程基本信息")
+public class EditCourseDto extends AddCourseDto{
+    @NotNull(groups = {ValidationGroups.Update.class},message = "修改课程时id不能为空")
+    @ApiModelProperty(value = "课程名称", required = true)
+    private Long id;
+}
+
+
+```
+
+修改后返回最新课程信息，采用与新增课程接口返回类型一致的数据模型。
+
+接口定义如下：
+
+```java
+/**
+    * @description 修改课程
+    * @param editCourseDto
+    * @return com.xuecheng.content.model.dto.CourseBaseInfoDto
+    * @author: woldier
+    * @date: 2023/3/6 19:44
+    */
+    @ApiOperation("修改课程接口")
+    @PutMapping("/course")
+    public CourseBaseInfoDto ModifyCourseBase(@RequestBody @Validated({ValidationGroups.Update.class}) EditCourseDto editCourseDto){
+        return null;
+    }
+```
+
+#### 3.4.3 接口开发
+
+##### 3.4.3.1 查询课程信息
+
+Dao之前已生成无需开发。
+
+查询课程信息的Service方法在新增课程接口开发中已实现，无需实现，如下：
+
+```java
+//根据课程id查询课程基本信息，包括基本信息和营销信息
+public CourseBaseInfoDto getCourseBaseInfo(long courseId){
+
+ CourseBase courseBase = courseBaseMapper.selectById(courseId);
+ LambdaQueryWrapper<CourseMarket> queryWrapper = new LambdaQueryWrapper();
+ queryWrapper.eq(CourseMarket::getCourseId,courseId);
+ CourseMarket courseMarket = courseMarketMapper.selectOne(queryWrapper);
+
+ if(courseBase == null || courseMarket == null){
+  return null;
+ }
+ CourseBaseInfoDto courseBaseInfoDto = new CourseBaseInfoDto();
+ BeanUtils.copyProperties(courseBase,courseBaseInfoDto);
+ courseBaseInfoDto.setPrice(courseMarket.getPrice());
+ courseBaseInfoDto.setCharge(courseMarket.getCharge());
+
+ return courseBaseInfoDto;
+
+}
+```
+
+需要将查询课程信息的方法提到接口上，这样在controller中通过接口调用此方法。
+
+```java
+  /**
+     * @param courseId
+     * @return com.xuecheng.content.model.dto.CourseBaseInfoDto
+     * @description 根据id查询课程基本信息
+     * @author: woldier
+     * @date: 2023/3/6 20:13
+     */
+    CourseBaseInfoDto getCourseBaseInfo(Long courseId);
+```
+
+完善接口层代码 ：
+
+```java
+/**
+     * @param courseId 课程id
+     * @return com.xuecheng.content.model.dto.CourseBaseInfoDto
+     * @description 根据id查询课程信息
+     * @author: woldier
+     * @date: 2023/3/6 19:27
+     */
+    @ApiOperation("查询单个课程接口")
+    @GetMapping("/course/{courseId}")
+    public CourseBaseInfoDto getCourseBaseInfoById(@PathVariable Long courseId) {
+        return courseBaseInfoService.getCourseBaseInfo(courseId);
+    }
+```
+
+测试查询课程
+
+用httpclient测试查询课程接口：
+
+```http
+GET /content/course/40
+Content-Type: application/json
+```
+
+##### 3.4.3.2 修改课程信息
+
+Dao之前已生成无需开发。
+
+修改Service修改课程的接口与方法：
+
+```java
+/**
+     * @param companyId     该课程所对应的公司id
+     * @param editCourseDto 修改的课程信息
+     * @return com.xuecheng.content.model.dto.CourseBaseInfoDto
+     * @description 修改课程基本信息
+     * @author: woldier
+     * @date: 2023/3/6 20:19
+     */
+    CourseBaseInfoDto updateCourseBase(Long companyId, EditCourseDto editCourseDto) throws XueChengPlusException;
+```
+
+实现方法如下：
+
+```java
+ /**
+     * @param companyId     该课程所对应的公司id
+     * @param editCourseDto 修改的课程信息
+     * @return com.xuecheng.content.model.dto.CourseBaseInfoDto
+     * @description 修改课程基本信息
+     * @author: woldier
+     * @date: 2023/3/6 20:19
+     */
+    @Override
+    @Transactional
+    public CourseBaseInfoDto updateCourseBase(Long companyId, EditCourseDto editCourseDto) throws XueChengPlusException {
+        /*1.查询数据库 看是否存在课程*/
+        /*得到id*/
+        Long id = editCourseDto.getId();
+        CourseBase courseBase = courseBaseMapper.selectById(id);
+        /*2.若为空抛出异常*/
+        if(courseBase==null)
+            XueChengPlusException.cast("课程不存在");
+        /*2.1 不为空检查companyId是否一致,不一致抛出*/
+        if(!courseBase.getCompanyId().equals(companyId))
+            XueChengPlusException.cast("companyId是不一致");
+        /*更新courseBase信息*/
+        /*拷贝*/
+        BeanUtils.copyProperties(editCourseDto,courseBase);
+
+        courseBase.setChangeDate(LocalDateTime.now());
+        courseBaseMapper.updateById(courseBase);
+
+        /*更新营销信息*/
+        CourseMarket courseMarket = new CourseMarket();
+        BeanUtils.copyProperties(editCourseDto,courseMarket);
+        courseMarket.setOriginalPrice(editCourseDto.getOriginalPrice().floatValue());
+        courseMarket.setPrice(editCourseDto.getPrice().floatValue());
+        checkCharge(courseMarket.getPrice(), editCourseDto.getCharge());
+        courseMarketService.saveOrUpdate(courseMarket);
+
+        /*查询封装返回*/
+        return getCourseBaseInfo(editCourseDto.getId());
+
+
+    }
+
+private static void checkCharge(Float price, String charge) throws XueChengPlusException {
+        if ("201001".equals(charge)) //如果为收费课程,扣费规则不能为空
+            if (price == null || price < 0.0)
+                //throw new RuntimeException("本课程为收费课程,但是价格为空");
+                XueChengPlusException.cast("本课程为收费课程,但是价格为空");
+    }
+```
+
+课程营销信息属于课程基本的附属信息，当添加课程、修改课程时对其进行保存，如果因为一些其它的原因课程基本信息存在而课程营销信息不存在，此时当修改课程基本信息时要可以将课程营销信息也保存到数据库。
+
+如何实现保存课程营销信息，没有则添加，有则更新 ?
+
+courseMarketMapper中定义了insert方法和update方法，这里需要判断决定调用哪一个方法。
+
+Mybatis-plus框架封装了一个通用的service类，里边有一个saveOrUpdate方法即可实现该功能。
+
+`CourseMarketServiceImpl`与 `CourseMarketService` 从generate中拷贝
+
+![image-20230306205117232](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230306205117232.png)
+
+#### 3.4.4 接口测试
+
+接口开发完成进行测试，使用httpclient测试
+
+```http
+### 根据课程id查询课程信息
+GET {{content_host}}/content/course/40
+Content-Type: application/json
+#响应结果
+#{
+#  "id": 40,
+#  "companyId": 1232141425,
+#  "companyName": null,
+#  "name": "SpringBoot核心",
+#  "users": "Spring Boot初学者",
+#  "tags": "Spring项目的快速构建",
+#  "mt": "1-3",
+#  "mtName": null,
+#  "st": "1-3-2",
+#  "stName": null,
+#  "grade": "200003",
+#  "teachmode": "201001",
+#  "description": "课程系统性地深度探讨 Spring Boot 核心特性，引导小伙伴对 Java 规范的重视，启发对技术原理性的思考，掌握排查问题的技能，以及学习阅读源码的方法和技巧，全面提升研发能力，进军架构师队伍。",
+#  "pic": "https://cdn.educba.com/academy/wp-content/uploads/2018/08/Spring-BOOT-Interview-questions.jpg",
+#  "createDate": "2019-09-10 16:05:39",
+#  "changeDate": "2022-09-09 07:27:48",
+#  "createPeople": null,
+#  "changePeople": null,
+#  "auditStatus": "202004",
+#  "status": "203001",
+#  "coursePubId": 21,
+#  "coursePubDate": null,
+#  "charge": "201001",
+#  "price": 0.01
+#}
+
+### 修改课程
+PUT {{content_host}}/content/course
+Content-Type: application/json
+
+{
+  "id": 40,
+  "companyName": null,
+  "name": "SpringBoot核心",
+  "users": "Spring Boot初学者",
+  "tags": "Spring项目的快速构建",
+  "mt": "1-3",
+  "st": "1-3-2",
+  "grade": "200003",
+  "teachmode": "201001",
+  "description": "课程系统性地深度探讨 Spring Boot 核心特性，引导小伙伴对 Java 规范的重视，启发对技术原理性的思考，掌握排查问题的技能，以及学习阅读源码的方法和技巧，全面提升研发能力，进军架构师队伍。",
+  "pic": "https://cdn.educba.com/academy/wp-content/uploads/2018/08/Spring-BOOT-Interview-questions.jpg",
+  "charge": "201001",
+  "price": 0.01
+}
+
+###修改成功响应结果如下
+#{
+#  "id": 40,
+#  "companyId": 1232141425,
+#  "companyName": null,
+#  "name": "SpringBoot核心",
+#  "users": "Spring Boot初学者",
+#  "tags": "Spring项目的快速构建",
+#  "mt": "1-3",
+#  "mtName": null,
+#  "st": "1-3-2",
+#  "stName": null,
+#  "grade": "200003",
+#  "teachmode": "201001",
+#  "description": "课程系统性地深度探讨 Spring Boot 核心特性，引导小伙伴对 Java 规范的重视，启发对技术原理性的思考，掌握排查问题的技能，以及学习阅读源码的方法和技巧，全面提升研发能力，进军架构师队伍。",
+#  "pic": "https://cdn.educba.com/academy/wp-content/uploads/2018/08/Spring-BOOT-Interview-questions.jpg",
+#  "createDate": "2019-09-10 16:05:39",
+#  "changeDate": "2022-09-09 07:27:48",
+#  "createPeople": null,
+#  "changePeople": null,
+#  "auditStatus": "202004",
+#  "status": "203001",
+#  "coursePubId": 21,
+#  "coursePubDate": null,
+#  "charge": "201001",
+#  "price": 0.01
+#}
+```
+
+前端开发完毕进行前后端接口联调。
+
+过程略。
+
+#### 3.4.5 代码优化
+
+程序员写的代码不仅要完成功能实现，还要养成代码重构优化的习惯，这样久而久之在写代码的过程中就养成了代码抽取及封装的习惯。
+
+下边举例说明：
+
+上边修改课程接口中对课程营销信息进行保存，并且校验了课程营销信息的价格字段，在添加课程和修改课程时都对课程营销信息的价格进行校验、最后保存，这里就可以将课程营销信息的校验及保存进行抽取，如下：
+
+```java
+ private static void checkCharge(Float price, String charge) throws XueChengPlusException {
+        if ("201001".equals(charge)) //如果为收费课程,扣费规则不能为空
+            if (price == null || price < 0.0)
+                //throw new RuntimeException("本课程为收费课程,但是价格为空");
+                XueChengPlusException.cast("本课程为收费课程,但是价格为空");
+    }
+```
+
+
+
+添加课程和修改课程时只需要准备好课程营销的数据库调用此抽取方法即可。
+
+请自行修改添加课程和修改课程的代码，调用此抽取方法校验和保存课程营销信息。
