@@ -34,3 +34,33 @@ Content-Type: application/json
   "description": "",
   "objectives": ""
 }
+
+### 课程查询byId
+GET {{content_host}}/content/course/1
+Content-Type: application/json
+
+
+### 课程修改
+PUT {{content_host}}/content/course
+Content-Type: application/json
+
+{
+  "id" : 130,
+  "charge": "201001",
+  "price": 256,
+  "originalPrice":2,
+  "qq": "22333",
+  "wechat": "223344",
+  "phone": "13333333",
+  "validDays": 365,
+  "mt": "1-1",
+  "st": "1-1-1",
+  "name": "测试课程104",
+  "pic": "",
+  "teachmode": "200002",
+  "users": "初级人员",
+  "tags": "",
+  "grade": "204001",
+  "description": "",
+  "objectives": ""
+}
