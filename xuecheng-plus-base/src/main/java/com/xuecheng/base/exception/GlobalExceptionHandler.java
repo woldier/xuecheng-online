@@ -25,7 +25,7 @@ public class GlobalExceptionHandler {
     */
     @ExceptionHandler(XueChengPlusException.class)
     @ResponseBody
-    @ResponseStatus(code = HttpStatus.INTERNAL_SERVER_ERROR, reason = "业务模块抛出异常")
+    @ResponseStatus(code = HttpStatus.INTERNAL_SERVER_ERROR)
     public RestErrorResponse doXueChengPlusException(XueChengPlusException e){
         return new RestErrorResponse(e.getErrMessage());
     }
@@ -39,8 +39,8 @@ public class GlobalExceptionHandler {
     */
     @ExceptionHandler(Exception.class)
     @ResponseBody
-    @ResponseStatus(code = HttpStatus.INTERNAL_SERVER_ERROR, reason = "服务器未知异常")
-    public RestErrorResponse doXueChengPlusException(Exception e){
+    @ResponseStatus(code = HttpStatus.INTERNAL_SERVER_ERROR)
+    public RestErrorResponse doException(Exception e){
         log.error(e.getMessage());
         e.printStackTrace();
         return new RestErrorResponse(CommonError.UNKOWN_ERROR.getErrMessage());
