@@ -212,21 +212,23 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         Long id = editCourseDto.getId();
         CourseBase courseBase = courseBaseMapper.selectById(id);
         /*2.若为空抛出异常*/
-        if(courseBase==null)
+        if (courseBase == null)
             XueChengPlusException.cast("课程不存在");
         /*2.1 不为空检查companyId是否一致,不一致抛出*/
-        if(!courseBase.getCompanyId().equals(companyId))
+        if (!courseBase.getCompanyId().equals(companyId))
             XueChengPlusException.cast("companyId是不一致");
         /*更新courseBase信息*/
         /*拷贝*/
-        BeanUtils.copyProperties(editCourseDto,courseBase);
+        BeanUtils.copyProperties(editCourseDto, courseBase);
 
         courseBase.setChangeDate(LocalDateTime.now());
         courseBaseMapper.updateById(courseBase);
 
         /*更新营销信息*/
         CourseMarket courseMarket = new CourseMarket();
-        BeanUtils.copyProperties(editCourseDto,courseMarket);
+        BeanUtils.copyProperties(editCourseDto, courseMarket);
+        courseMarket.setOriginalPrice(editCourseDto.getOriginalPrice().floatValue());
+        courseMarket.setPrice(editCourseDto.getPrice().floatValue());
         checkCharge(courseMarket.getPrice(), editCourseDto.getCharge());
         courseMarketService.saveOrUpdate(courseMarket);
 
