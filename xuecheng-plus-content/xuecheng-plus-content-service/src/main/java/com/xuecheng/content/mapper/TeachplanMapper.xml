@@ -91,9 +91,9 @@
                m1.id             teachplanMeidaId,
                m1.media_id       mediaId
         FROM teachplan one
-                 JOIN teachplan two ON one.id = two.parentid
+                 LEFT JOIN teachplan two ON one.id = two.parentid
                  LEFT JOIN teachplan_media m1 on two.id = m1.teachplan_id
-        WHERE one.course_id = #{courseId}
+        WHERE one.grade="1" AND one.course_id = #{courseId}
         ORDER BY one.orderby, two.orderby
     </select>
 
