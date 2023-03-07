@@ -70,11 +70,11 @@ public class TeachplanServiceImpl extends ServiceImpl<TeachplanMapper, Teachplan
             LambdaQueryWrapper<Teachplan> lambdaQueryWrapper = new LambdaQueryWrapper<>();
             /*计数与dto课程id相同且父节点相同的节点数目*/
             lambdaQueryWrapper.eq(Teachplan::getCourseId, dto.getCourseId())
-                    .eq(Teachplan::getParentid, dto.getParentid());
-            int count = this.count(lambdaQueryWrapper);
+                    .eq(Teachplan::getParentid, dto.getParentid()).orderByDesc(Teachplan::getOrderby);
+            /*取出所有节点,对orderBy字段排序,取出oder最大的作为count*/
+            Integer count = this.list(lambdaQueryWrapper).get(0).getOrderby();
 
             /*设置排序号为总数加1*/
-            //TODO 思考了下感觉这里有一个bug,就是如果我们先添加了10个节点(orderBy 从1-10),然后删除了5个现在节点总数为五,那么此时插入的这个节点orderBy应该为6 这就有一些小问题
             teachplan.setOrderby(count + 1);
             this.save(teachplan);
         } else {
