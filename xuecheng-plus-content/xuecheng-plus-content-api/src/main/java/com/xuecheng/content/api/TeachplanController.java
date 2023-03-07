@@ -50,4 +50,17 @@ public class TeachplanController {
     public void saveOrUpdateTeachPlan(@RequestBody SaveTeachplanDto dto){
         teachplanService.saveOrUpdateTeachPlan(dto);
     }
+
+    /**
+    * @description 删除课程计划信息
+    * @param dto
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/7 20:59
+    */
+    @ApiOperation("删除课程计划信息")
+    @DeleteMapping("/teachplan/{id}")
+    public void deleteTeachPlan(@PathVariable Long id){
+
+    }
 }
