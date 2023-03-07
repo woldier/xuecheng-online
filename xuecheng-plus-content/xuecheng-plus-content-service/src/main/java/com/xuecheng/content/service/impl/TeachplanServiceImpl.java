@@ -105,7 +105,7 @@ public class TeachplanServiceImpl extends ServiceImpl<TeachplanMapper, Teachplan
         if (teachplan == null)
             XueChengPlusException.cast("课程不存在");
         Integer grade = teachplan.getGrade();
-        TeachplanService context = (TeachplanService) AopContext.currentProxy();
+
         if (grade.equals(1)) {
             /*为章递归删除其子节点*/
             List<TeachplanDto> teachplanDtos = this.selectTreeNodes(teachplan.getCourseId());
@@ -114,11 +114,11 @@ public class TeachplanServiceImpl extends ServiceImpl<TeachplanMapper, Teachplan
             /*删除章*/
             this.removeById(id);
             /*删除节*/
-            teachPlanTreeNodes.forEach(e->context.delete4Grade2(e.getId()));
+            teachPlanTreeNodes.forEach(e->this.delete4Grade2(e.getId()));
         } else
             //delete4Grade2(id);
             /*事务传递*/
-            context.delete4Grade2(id);
+            this.delete4Grade2(id);
 
     }
 
