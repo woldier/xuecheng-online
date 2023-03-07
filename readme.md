@@ -5050,3 +5050,190 @@ public class SaveTeachplanDto {
 
 #### 3.6.4 接口测试
 
+### 3.7 删除课程计划
+
+#### 3.7.1 需求分析
+
+##### 3.7.1.1 业务流程
+
+在课程修改界面对章节或者小结点击删除
+
+![image-20230307204936409](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307204936409.png)
+
+##### 3.7.1.2 数据模型
+
+1、删除第一级课程计划
+
+id:
+
+grade：1
+
+删除以及课程计划的同时需要删除其下二级记录
+
+2、删除第二级课程计划
+
+id:
+
+grade：2
+
+orderby:  所属课程计划中排在最后
+
+#### 3.7.2 接口定义
+
+```http
+### 课程计划删除--章
+DELETE {{content_host}}/content/teachplan/{id}
+Content-Type: application/json
+
+### 课程计划删除--节
+DELETE {{content_host}}/content/teachplan/123
+Content-Type: application/json
+
+```
+
+#### 3.7.3 接口开发
+
+##### 3.7.3.2 DAO开发
+
+dao层使用原生
+
+##### 3.7.3.3 Service开发
+
+接口代码
+
+```java
+/**
+     * @param id 课程计划id
+     * @return void
+     * @description 删除课程计划
+     * @author: woldier
+     * @date: 2023/3/7 21:05
+     */
+    void deleteTeachPlan(Long id) throws XueChengPlusException;
+
+    void delete4Grade2(Long id);
+```
+
+impl代码
+
+```java
+ /**
+     * @param id 课程计划id
+     * @return void
+     * @description 删除课程计划
+     * @author: woldier
+     * @date: 2023/3/7 21:05
+     */
+    @Override
+    @Transactional
+    public void deleteTeachPlan(Long id) throws XueChengPlusException {
+        /*
+         * 1.查询数据库中课程计划
+         * 查看是否存在不存在抛出异常
+         * 2.获取课程计划的等级
+         * 若为章则递归删除其子节点
+         * 若为节,直接删除,查询是否有媒体信息,有则删除
+         *
+         * */
+        Teachplan teachplan = this.getById(id);
+        if (teachplan == null)
+            XueChengPlusException.cast("课程不存在");
+        Integer grade = teachplan.getGrade();
+
+        if (grade.equals(1)) {
+            /*为章递归删除其子节点*/
+            List<TeachplanDto> teachplanDtos = this.selectTreeNodes(teachplan.getCourseId());
+            /*取出二级节点*/
+            List<TeachplanDto> teachPlanTreeNodes = teachplanDtos.stream().filter(e -> e.getId().equals(teachplan.getId())).collect(Collectors.toList()).get(0).getTeachPlanTreeNodes();
+            /*删除章*/
+            this.removeById(id);
+            /*删除节*/
+            teachPlanTreeNodes.forEach(e->this.delete4Grade2(e.getId()));
+        } else
+            //delete4Grade2(id);
+            /*事务传递*/
+            this.delete4Grade2(id);
+
+    }
+
+    /**
+     * @param id 二级课程id
+     * @return
+     * @description 根据二级课程的id 删除 仅仅二级使用
+     * @author: woldier
+     * @date: 2023/3/7 21:17
+     */
+    @Override
+    @Transactional
+    public void delete4Grade2(Long id) {
+        this.removeById(id);
+        LambdaQueryWrapper<TeachplanMedia> lb4Media = new LambdaQueryWrapper<>();
+        lb4Media.eq(TeachplanMedia::getTeachplanId, id);
+        /*若根据课程计划id查询到有数据,说明绑定了视频,进行删除*/
+        if (teachplanMediaService.count(lb4Media) > 0)
+            teachplanMediaService.remove(lb4Media);
+
+    }
+```
+
+
+
+
+
+
+
+##### 3.7.3.4 接口完善
+
+```java
+/**
+    * @description 删除课程计划信息
+    * @param id
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/7 20:59
+    */
+    @ApiOperation("删除课程计划信息")
+    @DeleteMapping("/teachplan/{id}")
+    public void deleteTeachPlan(@PathVariable Long id) throws XueChengPlusException {
+        teachplanService.deleteTeachPlan(id);
+    }
+```
+
+#### 3.7.5 接口测试
+
+![image-20230307214628665](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307214628665.png)
+
+![image-20230307214640942](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307214640942.png)
+
+![image-20230307214656604](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307214656604.png)
+
+不过这里的章删除有bug,这是前端的代码有一些小bug,我们通过http测试即可
+
+![image-20230307214751200](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307214751200.png)
+
+点击删除章节的时候,id为undefined
+
+现在重新添加一个小结,然后通过http进行删除
+
+![image-20230307214900660](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307214900660.png)
+
+可以通过控制台查看到章节3的id
+
+![image-20230307215010408](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307215010408.png)
+
+```http
+### 课程计划删除--节
+DELETE {{content_host}}/content/teachplan/280
+Content-Type: application/json
+```
+
+再次刷新前端页面,已经成功删除
+
+![image-20230307215210829](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307215210829.png)
+
+
+
+### 3.8 课程计划排序
+
+#### 3.8.1 需求分析
+
