@@ -18,7 +18,7 @@ Content-Type: application/json
 {
   "charge": "201000",
   "price": 0,
-  "originalPrice":0,
+  "originalPrice": 0,
   "qq": "22333",
   "wechat": "223344",
   "phone": "13333333",
@@ -45,10 +45,10 @@ PUT {{content_host}}/content/course
 Content-Type: application/json
 
 {
-  "id" : 130,
+  "id": 130,
   "charge": "201001",
   "price": 256,
-  "originalPrice":2,
+  "originalPrice": 2,
   "qq": "22333",
   "wechat": "223344",
   "phone": "13333333",
@@ -75,18 +75,22 @@ POST {{content_host}}/content/teachplan
 Content-Type: application/json
 
 {
-  "courseId" : 74,
+  "courseId": 74,
   "parentid": 0,
-  "grade" : 1,
-  "pname" : "新章名称 [点击修改]"
+  "grade": 1,
+  "pname": "新章名称 [点击修改]"
 }
+
 ### 新增课程计划--节
-POST {{content_host}}/content/teachplan
+POST {{content_host}}/content/123
 Content-Type: application/json
 
-{
-  "courseId" : 74,
-  "parentid": 247,
-  "grade" : 2,
-  "pname" : "小节名称 [点击修改]"
-}
+
+### 课程计划删除--章
+DELETE {{content_host}}/content/teachplan/280
+Content-Type: application/json
+
+
+### 课程计划删除--节
+DELETE {{content_host}}/content/teachplan/123
+Content-Type: application/json
