@@ -14,7 +14,7 @@ import java.util.List;
  * @date 2023/3/7 17:24
  **/
 @Data
-@ToString
+@ToString(callSuper = true)
 public class TeachplanDto extends Teachplan {
     //课程计划关联的媒资信息
     private TeachplanMedia teachplanMedia;
