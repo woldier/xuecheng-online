@@ -4338,3 +4338,715 @@ Content-Type: application/json
 添加课程和修改课程时只需要准备好课程营销的数据库调用此抽取方法即可。
 
 请自行修改添加课程和修改课程的代码，调用此抽取方法校验和保存课程营销信息。
+
+
+
+### 3.5 查询课程计划
+
+#### 3.5.1 需求分析
+
+##### 3.5.1.1 业务流程
+
+课程基本信息添加或修改成功将自动进入课程计划编辑器界面，如下图：
+
+![image-20230307163447424](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307163447424.png)
+
+课程计划即课程的大纲目录。
+
+课程计划分为两级：章节和小节。
+
+本小节完成课程计划信息的查询。
+
+##### 3.5.1.2 数据模型
+
+从课程计划查询界面上可以看出整体上是 一个树型结构，课程计划表teachplan如下：
+
+![image-20230307163617470](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307163617470.png)
+
+![image-20230307163815431](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307163815431.png)
+
+每个课程计划都有所属课程。
+
+每个课程的课程计划有两个级别，第一级为章，grade为1、第二级为小节，grade为2
+
+3。第二级的parentid为第一级的id。
+
+课程计划的显示顺序根据排序字段去显示。
+
+根据业务流程中的界面原型，课程计划列表展示时还有课程计划关联的视频信息。
+
+课程计划关联的视频信息在teachplan_media表，结构如下：
+
+![image-20230307163747590](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307163747590.png)
+
+两张表是一对一关系，每个课程计划只能在teachplan_media表中存在一个视频。
+
+#### 3.5.2 接口定义
+
+```http
+GET /teachplan/22/tree-nodes
+
+ [
+      {
+         "changeDate" : null,
+         "courseId" : 74,
+         "cousePubId" : null,
+         "createDate" : null,
+         "endTime" : null,
+         "grade" : "2",
+         "isPreview" : "0",
+         "mediaType" : null,
+         "orderby" : 1,
+         "parentid" : 112,
+         "pname" : "第1章基础知识",
+         "startTime" : null,
+         "status" : null,
+         "id" : 113,
+         "teachPlanTreeNodes" : [
+            {
+               "changeDate" : null,
+               "courseId" : 74,
+               "cousePubId" : null,
+               "createDate" : null,
+               "endTime" : null,
+               "grade" : "3",
+               "isPreview" : "1",
+               "mediaType" : "001002",
+               "orderby" : 1,
+               "parentid" : 113,
+               "pname" : "第1节项目概述",
+               "startTime" : null,
+               "status" : null,
+               "id" : 115,
+               "teachPlanTreeNodes" : null,
+               "teachplanMedia" : {
+                  "courseId" : 74,
+                  "coursePubId" : null,
+                  "mediaFilename" : "2.avi",
+                  "mediaId" : 41,
+                  "teachplanId" : 115,
+                  "id" : null
+               }
+            }
+         ],
+         "teachplanMedia" : null
+      },
+      {
+         "changeDate" : null,
+         "courseId" : 74,
+         "cousePubId" : null,
+         "createDate" : null,
+         "endTime" : null,
+         "grade" : "2",
+         "isPreview" : "0",
+         "mediaType" : "",
+         "orderby" : 1,
+         "parentid" : 112,
+         "pname" : "第2章快速入门",
+         "startTime" : null,
+         "status" : null,
+         "id" : 242,
+         "teachPlanTreeNodes" : [
+            {
+               "changeDate" : null,
+               "courseId" : 74,
+               "cousePubId" : null,
+               "createDate" : null,
+               "endTime" : null,
+               "grade" : "3",
+               "isPreview" : "1",
+               "mediaType" : "001002",
+               "orderby" : 2,
+               "parentid" : 242,
+               "pname" : "第1节搭建环境",
+               "startTime" : null,
+               "status" : null,
+               "id" : 244,
+               "teachPlanTreeNodes" : null,
+               "teachplanMedia" : {
+                  "courseId" : 74,
+                  "coursePubId" : null,
+                  "mediaFilename" : "3.avi",
+                  "mediaId" : 42,
+                  "teachplanId" : 244,
+                  "id" : null
+               }
+            },
+            {
+               "changeDate" : null,
+               "courseId" : 74,
+               "cousePubId" : null,
+               "createDate" : null,
+               "endTime" : null,
+               "grade" : "3",
+               "isPreview" : "0",
+               "mediaType" : "001002",
+               "orderby" : 3,
+               "parentid" : 242,
+               "pname" : "第2节项目概述",
+               "startTime" : null,
+               "status" : null,
+               "id" : 245,
+               "teachPlanTreeNodes" : null,
+               "teachplanMedia" : {
+                  "courseId" : 74,
+                  "coursePubId" : null,
+                  "mediaFilename" : "1a.avi",
+                  "mediaId" : 39,
+                  "teachplanId" : 245,
+                  "id" : null
+               }
+            }
+         ],
+         "teachplanMedia" : null
+      }
+   ]
+```
+
+查询课程计划的请求参数：课程id
+
+响应结果需要自定义模型类：
+
+```java
+package com.xuecheng.content.model.dto;
+
+import com.xuecheng.content.model.po.Teachplan;
+import com.xuecheng.content.model.po.TeachplanMedia;
+import lombok.Data;
+
+import java.util.List;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程计划dto类,属于树形结构但是只有两级分类
+ * @date 2023/3/7 17:24
+ **/
+@Data
+@ToString
+public class TeachplanDto extends Teachplan {
+    //课程计划关联的媒资信息
+    private TeachplanMedia teachplanMedia;
+    //课程计划对应的子节点信息
+    private List<TeachplanDto> teachPlanTreeNodes;
+}
+
+```
+
+定义接口如下：
+
+```java
+package com.xuecheng.content.api;
+
+import com.xuecheng.content.model.dto.TeachplanDto;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiOperation;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程计划相关接口
+ * @date 2023/3/7 17:28
+ **/
+@Api(value = "课程计划编辑接口",tags = "课程计划编辑接口")
+@RestController
+public class TeachplanController {
+    @ApiOperation("查询课程计划树形结构")
+    @ApiImplicitParam(value = "courseId",name = "课程Id",required = true,dataType = "Long",paramType = "path")
+    @GetMapping("/teachplan/{courseId}/tree-nodes")
+    public List<TeachplanDto> getTreeNodes(@PathVariable Long courseId){
+        return null;
+    }
+}
+
+```
+
+#### 3.5.3 接口开发
+
+##### 3.5.3.1 DAO开发
+
+DAO接口使用sql查询课程计划，组成一个树型结构。
+
+在TeachplanMapper自定义方法：
+
+```java
+@Mapper
+public interface TeachplanMapper extends BaseMapper<Teachplan> {
+    /**
+    * @description 根据课程id查询课程计划信息和课程媒体信息
+    * @param courseId
+    * @return java.util.List<com.xuecheng.content.model.dto.TeachplanDto>
+    * @author: woldier
+    * @date: 2023/3/7 17:50
+    */
+    List<TeachplanDto> selectTreeNodes(Long courseId);
+}
+```
+
+
+
+定义mapper.xml中的sql语句，分析如下：
+
+1、一级分类和二级分类通过teachplan表的自链接进行，如果只有一级分类其下边没有二级分类，此时也需要显示一级分类，这里使用左连接，左边是一级分类，右边是二级分类。
+
+2、由于当还没有关联 视频时teachplan_media对应的记录为空，所以需要teachplan和teachplan_media左链接。
+
+sql如下：
+
+```xml
+  <!-- 课程分类树型结构查询映射结果 -->
+    <resultMap id="treeNodeResultMap" type="com.xuecheng.content.model.dto.TeachplanDto">
+        <!-- 一级数据映射 -->
+        <id column="one_id" property="id"/>
+        <result column="one_pname" property="pname"/>
+        <result column="one_parentid" property="parentid"/>
+        <result column="one_grade" property="grade"/>
+        <result column="one_mediaType" property="mediaType"/>
+        <result column="one_stratTime" property="stratTime"/>
+        <result column="one_endTime" property="endTime"/>
+        <result column="one_orderby" property="orderby"/>
+        <result column="one_courseId" property="courseId"/>
+        <result column="one_coursePubId" property="coursePubId"/>
+        <!-- 一级中包含多个二级数据 -->
+        <collection property="teachPlanTreeNodes" ofType="com.xuecheng.content.model.dto.TeachplanDto">
+            <!-- 二级数据映射 -->
+            <id column="two_id" property="id"/>
+            <result column="two_pname" property="pname"/>
+            <result column="two_parentid" property="parentid"/>
+            <result column="two_grade" property="grade"/>
+            <result column="two_mediaType" property="mediaType"/>
+            <result column="two_stratTime" property="stratTime"/>
+            <result column="two_endTime" property="endTime"/>
+            <result column="two_orderby" property="orderby"/>
+            <result column="two_courseId" property="courseId"/>
+            <result column="two_coursePubId" property="coursePubId"/>
+            <!--    每一个二级课程计划对应一个媒资信息        -->
+            <association property="teachplanMedia" javaType="com.xuecheng.content.model.po.TeachplanMedia">
+                <result column="teachplanMeidaId" property="id"/>
+                <result column="mediaFilename" property="mediaFilename"/>
+                <result column="mediaId" property="mediaId"/>
+                <result column="two_id" property="teachplanId"/>
+                <result column="two_courseId" property="courseId"/>
+                <result column="two_coursePubId" property="coursePubId"/>
+            </association>
+        </collection>
+    </resultMap>
+
+    <select id="selectTreeNodes" resultMap="treeNodeResultMap" parameterType="long">
+        SELECT one.id            one_id,
+               one.pname         one_pname,
+               one.parentid      one_parentid,
+               one.grade         one_grade,
+               one.media_type    one_mediaType,
+               one.start_time    one_startTime,
+               one.end_time      one_endTime,
+               one.orderby       one_orderby,
+               one.course_id     one_courseId,
+               one.course_pub_id one_coursePubId,
+               two.id            two_id,
+               two.pname         two_pname,
+               two.parentid      two_parentid,
+               two.grade         two_grade,
+               two.media_type    two_mediaType,
+               two.start_time    two_stratTime,
+               two.end_time      two_endTime,
+               two.orderby       two_orderby,
+               two.course_id     two_courseId,
+               two.course_pub_id two_coursePubId,
+               m1.media_fileName mediaFilename,
+               m1.id             teachplanMeidaId,
+               m1.media_id       mediaId
+        FROM teachplan one
+                 LEFT JOIN teachplan two ON one.id = two.parentid
+                 LEFT JOIN teachplan_media m1 on two.id = m1.teachplan_id
+        WHERE one.grade="1" AND one.course_id = #{courseId}
+        ORDER BY one.orderby, two.orderby
+    </select>
+```
+
+单元测试方法
+
+```java
+package com.xuecheng.content;
+
+import com.xuecheng.content.mapper.TeachplanMapper;
+import com.xuecheng.content.model.dto.TeachplanDto;
+import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.util.List;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 测试
+ * @date 2023/3/7 17:54
+ **/
+@SpringBootTest
+
+@Slf4j
+public class TeachplanMapperTest {
+    @Autowired
+    private TeachplanMapper teachplanMapper;
+
+    @Test
+    public void test(){
+        List<TeachplanDto> teachplanDtos = teachplanMapper.selectTreeNodes(117L);
+        log.info(teachplanDtos.toString());
+    }
+}
+
+```
+
+##### 3.5.3.2 Service开发
+
+```java
+package com.xuecheng.content.service;
+
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.xuecheng.content.model.dto.TeachplanDto;
+import com.xuecheng.content.model.po.Teachplan;
+
+import java.util.List;
+
+/**
+ * <p>
+ * 课程计划 服务类
+ * </p>
+ *
+ * @author itcast
+ * @since 2023-02-16
+ */
+public interface TeachplanService extends IService<Teachplan> {
+    /**
+     * @description 根据课程id查询课程计划信息和课程媒体信息
+     * @param courseId
+     * @return java.util.List<com.xuecheng.content.model.dto.TeachplanDto>
+     * @author: woldier
+     * @date: 2023/3/7 17:50
+     */
+    List<TeachplanDto> selectTreeNodes(Long courseId);
+}
+
+```
+
+定义service接口实现类
+
+```java
+package com.xuecheng.content.service.impl;
+
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.xuecheng.content.mapper.TeachplanMapper;
+import com.xuecheng.content.model.dto.TeachplanDto;
+import com.xuecheng.content.model.po.Teachplan;
+import com.xuecheng.content.service.TeachplanService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * <p>
+ * 课程计划 服务实现类
+ * </p>
+ *
+ * @author itcast
+ */
+@Slf4j
+@Service
+public class TeachplanServiceImpl extends ServiceImpl<TeachplanMapper, Teachplan> implements TeachplanService {
+    /**
+     * @description 根据课程id查询课程计划信息和课程媒体信息
+     * @param courseId
+     * @return java.util.List<com.xuecheng.content.model.dto.TeachplanDto>
+     * @author: woldier
+     * @date: 2023/3/7 17:50
+     */
+    @Override
+    public List<TeachplanDto> selectTreeNodes(Long courseId) {
+        return baseMapper.selectTreeNodes(courseId);
+    }
+}
+
+```
+
+##### 3.5.3.3 接口层代码完善
+
+```java
+private final TeachplanService teachplanService;
+    @ApiOperation("查询课程计划树形结构")
+    @ApiImplicitParam(value = "courseId",name = "课程Id",required = true,dataType = "Long",paramType = "path")
+    @GetMapping("/teachplan/{courseId}/tree-nodes")
+    public List<TeachplanDto> getTreeNodes(@PathVariable Long courseId){
+        return teachplanService.selectTreeNodes(courseId);
+    }
+```
+
+#### 3.5.4 接口测试
+
+1、使用httpclient测试
+
+找一个有课程计划的课程进行测试
+
+```http
+### 查询某个课程的课程计划
+
+GET {{content_host}}/content/teachplan/74/tree-nodes
+Content-Type: application/json
+```
+
+2、前后端联调
+
+1）进入课程编辑页面
+
+2）保存进入下一步
+
+观察课程计划获取是否成功。
+
+1）进入新增课程页面
+
+2）新增课程成功，自动进入课程计划编辑界面。
+
+由于是新增的课程，课程计划为空。
+
+![image-20230307190712325](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307190712325.png)
+
+### 3.6 新增/修改课程计划
+
+#### 3.6.1 需求分析
+
+##### 3.6.1.1 业务流程
+
+1、进入课程计划界面
+
+![image-20230307192728614](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230307192728614.png)
+
+2、点击“添加章”新增第一级课程计划。
+
+新增成功自动刷新课程计划列表。
+
+3、点击“添加小节”向某个第一级课程计划下添加小节。
+
+新增成功自动刷新课程计划列表。
+
+新增的课程计划自动排序到最后。
+
+4、点击“章”、“节”的名称，可以修改名称、选择是否免费。
+
+##### 3.6.1.2 数据模型
+
+1、新增第一级课程计划
+
+名称默认为：新章名称 [点击修改]
+
+grade：1
+
+orderby:  所属课程中同级别下排在最后
+
+2、新增第二级课程计划
+
+名称默认为：新小节名称 [点击修改]
+
+grade：2
+
+orderby:  所属课程计划中排在最后
+
+3、修改第一级、第二级课程计划的名称，修改第二级课程计划是否免费
+
+#### 3.6.2  接口定义
+
+
+
+接口示例如下：
+
+```http
+### 新增课程计划--章,当grade为1时parentid为0
+POST {{content_host}}/content/teachplan
+Content-Type: application/json
+
+{
+  "courseId" : 74,
+  "parentid": 0,
+  "grade" : 1,
+  "pname" : "新章名称 [点击修改]"
+}
+### 新增课程计划--节
+POST {{content_host}}/content/teachplan
+Content-Type: application/json
+
+{
+  "courseId" : 74,
+  "parentid": 247,
+  "grade" : 2,
+  "pname" : "小节名称 [点击修改]"
+}
+```
+
+同一个接口接收新增和修改两个业务请求，以是否传递课程计划id 来判断是新增还是修改。
+
+如果传递了课程计划id说明当前是要修改该课程计划，否则是新增一个课程计划。
+
+定义接收请求参数的数据模型类：
+
+定义SaveTeachplanDto
+
+```java
+package com.xuecheng.content.model.dto;
+
+import lombok.Data;
+import lombok.ToString;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 新增/修改课程计划的请求参数dto
+ * @date 2023/3/7 19:34
+ **/
+@Data
+@ToString
+public class SaveTeachplanDto {
+    /***
+     * 教学计划id
+     */
+    private Long id;
+
+    /**
+     * 课程计划名称
+     */
+    private String pname;
+
+    /**
+     * 课程计划父级Id
+     */
+    private Long parentid;
+
+    /**
+     * 层级，分为1、2、3级
+     */
+    private Integer grade;
+
+    /**
+     * 课程类型:1视频、2文档
+     */
+    private String mediaType;
+
+
+    /**
+     * 课程标识
+     */
+    private Long courseId;
+
+    /**
+     * 课程发布标识
+     */
+    private Long coursePubId;
+
+
+    /**
+     * 是否支持试学或预览（试看）
+     */
+    private String isPreview;
+}
+
+```
+
+`com.xuecheng.content.api.TeachplanController`定义接口如下：
+
+```java
+ /**
+    * @description 新增课程计划接口
+    *
+    * @return java.util.List<com.xuecheng.content.model.dto.TeachplanDto>
+    * @author: woldier
+    * @date: 2023/3/7 19:13
+    */
+    @ApiOperation("添加课程计划信息")
+    @PostMapping("/teachplan")
+    public void saveOrUpdateTeachPlan(@RequestBody SaveTeachplanDto dto){
+        
+    }
+```
+
+#### 3.6.3 接口开发
+
+##### 3.6.3.1 DAO开发
+
+根据业务的分析，DAO使用自动生成的mapper即可满足要求。
+
+##### 3.6.3.2 Service开发
+
+定义保存课程计划的Service接口。
+
+```java
+ /**
+     * @param dto
+     * @return void
+     * @description 新增或者更新课程计划  通过判断dto中是否有id主键判断是新增还是更新
+     * @author: woldier
+     * @date: 2023/3/7 19:39
+     */
+    void saveOrUpdateTeachPlan(SaveTeachplanDto dto);
+```
+
+编写接口实现：
+
+```java
+@Override
+    @Transactional
+    public void saveOrUpdateTeachPlan(SaveTeachplanDto dto) {
+        /*
+        算法如下
+        1. 检查dto中的课程计划id是否为null为空
+        2. 若为空说明是新建,需要从数据库中查询当前节点应该排在第几位
+        3. 若不为空说明是修改课程,那么我们直接保存数据库
+         */
+        Long id = dto.getId();
+        Teachplan teachplan = new Teachplan();
+        BeanUtils.copyProperties(dto,teachplan);
+        if(id==null){
+            /*新建*/
+            /*数据库中查询当前节点应该排在第几位*/
+            LambdaQueryWrapper<Teachplan> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+            /*计数与dto课程id相同且父节点相同的节点数目*/
+            lambdaQueryWrapper.eq(Teachplan::getCourseId,dto.getCourseId())
+                    .eq(Teachplan::getParentid,dto.getParentid());
+            int count = this.count(lambdaQueryWrapper);
+
+            /*设置排序号为总数加1*/
+            //TODO 思考了下感觉这里有一个bug,就是如果我们先添加了10个节点(orderBy 从1-10),然后删除了5个现在节点总数为五,那么此时插入的这个节点orderBy应该为6 这就有一些小问题
+            teachplan.setOrderby(count+1);
+            this.save(teachplan);
+        }else{
+            /*更新*/
+            this.updateById(teachplan);
+        }
+    }
+```
+
+##### 3.6.3.3 接口代码完善
+
+```java
+/**
+    * @description 新增课程计划接口
+    *
+    * @return java.util.List<com.xuecheng.content.model.dto.TeachplanDto>
+    * @author: woldier
+    * @date: 2023/3/7 19:13
+    */
+    @ApiOperation("添加课程计划信息")
+    @PostMapping("/teachplan")
+    public void saveOrUpdateTeachPlan(@RequestBody SaveTeachplanDto dto){
+        teachplanService.saveOrUpdateTeachPlan(dto);
+    }
+```
+
+#### 3.6.4 接口测试
+
