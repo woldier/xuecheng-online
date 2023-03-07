@@ -24,7 +24,7 @@ import java.util.List;
 /**
  * @author woldier
  * @version 1.0
- * @description TODO
+ * @description 课程基础信息接口
  * @date 2023/2/14 17:29
  **/
 @Api(value = "课程信息编辑接口", tags = "课程信息编辑接口")
