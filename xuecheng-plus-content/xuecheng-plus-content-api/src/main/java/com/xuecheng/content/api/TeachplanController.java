@@ -64,4 +64,30 @@ public class TeachplanController {
     public void deleteTeachPlan(@PathVariable Long id) throws XueChengPlusException {
         teachplanService.deleteTeachPlan(id);
     }
+
+    /**
+    * @description 课程下移
+    * @param id
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/7 22:20
+    */
+    @ApiOperation("移动课程计划信息位置下移")
+    @PostMapping("/teachplan/movedown/{id}")
+    public void moveDown(@PathVariable Long id) throws XueChengPlusException {
+        teachplanService.move(id,Boolean.TRUE);
+    }
+
+    /**
+     * @description 课程上移
+     * @param id
+     * @return void
+     * @author: woldier
+     * @date: 2023/3/7 22:20
+     */
+    @ApiOperation("移动课程计划信息位置上移")
+    @PostMapping("/teachplan/moveup/{id}")
+    public void moveUp(@PathVariable Long id) throws XueChengPlusException {
+        teachplanService.move(id,Boolean.FALSE);
+    }
 }
