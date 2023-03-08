@@ -5237,3 +5237,39 @@ Content-Type: application/json
 
 #### 3.8.1 需求分析
 
+##### 3.8.1.1 业务流程
+
+在课程修改界面对章节或者小结点击上移下移
+
+##### 3.8.1.2 数据模型
+
+#### 3.8.2 接口定义
+
+接口示例如下：
+
+```http
+### 课程计划上移
+DELETE {{content_host}}/content/teachplan/{id}
+Content-Type: application/json
+
+### 课程计划删除--节
+DELETE {{content_host}}/content/teachplan/123
+Content-Type: application/json
+```
+
+#### 3.8.3 接口开发
+
+##### 3.8.3.1 dao开发
+
+
+
+
+
+##### 3.8.3.2 service开发
+
+
+
+
+
+##### 3.8.3.3 接口代码完善
+
