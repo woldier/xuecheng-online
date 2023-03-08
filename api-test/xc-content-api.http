@@ -94,3 +94,36 @@ Content-Type: application/json
 ### 课程计划删除--节
 DELETE {{content_host}}/content/teachplan/123
 Content-Type: application/json
+
+
+### 课程教师信息查询
+GET {{content_host}}/content/courseTeacher/list/72
+Content-Type: application/json
+
+### 新增修改课程教师信息
+POST {{content_host}}/content/courseTeacher
+Content-Type: application/json
+
+{
+
+  "courseId": 72,
+  "teacherName": "wangxu3",
+  "position": "java高级讲师2",
+  "introduction": "111111",
+  "photograph": "http://r3zc5rung.hd-bkt.clouddn.com/2424e25d-b3ff-4ea2-92a5-249af918a42dGDSzBXIgWuwMCiZ4",
+  "createDate": "2021-12-25 17:44:07"
+}
+
+### 新增修改课程教师信息
+POST {{content_host}}/content/courseTeacher
+Content-Type: application/json
+
+{
+  "id": 1,
+  "courseId": 72,
+  "teacherName": "wangxu3",
+  "position": "java高级讲师2",
+  "introduction": "111111",
+  "photograph": "http://r3zc5rung.hd-bkt.clouddn.com/2424e25d-b3ff-4ea2-92a5-249af918a42dGDSzBXIgWuwMCiZ4",
+  "createDate": "2021-12-25 17:44:07"
+}
