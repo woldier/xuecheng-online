@@ -9,15 +9,12 @@ import com.xuecheng.base.model.PageResult;
 import com.xuecheng.content.mapper.CourseBaseMapper;
 import com.xuecheng.content.mapper.CourseCategoryMapper;
 import com.xuecheng.content.mapper.CourseMarketMapper;
-import com.xuecheng.content.model.dto.AddCourseDto;
-import com.xuecheng.content.model.dto.CourseBaseInfoDto;
-import com.xuecheng.content.model.dto.EditCourseDto;
-import com.xuecheng.content.model.dto.QueryCourseParamsDto;
-import com.xuecheng.content.model.po.CourseBase;
-import com.xuecheng.content.model.po.CourseCategory;
-import com.xuecheng.content.model.po.CourseMarket;
+import com.xuecheng.content.model.dto.*;
+import com.xuecheng.content.model.po.*;
 import com.xuecheng.content.service.CourseBaseInfoService;
 import com.xuecheng.content.service.CourseMarketService;
+import com.xuecheng.content.service.CourseTeacherService;
+import com.xuecheng.content.service.TeachplanService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +42,12 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
     private final CourseCategoryMapper courseCategoryMapper;
 
     private final CourseMarketService courseMarketService;
+
+
+    private final CourseTeacherService courseTeacherService;
+
+    private final TeachplanService teachplanService;
+
     /**
      * @param pageParams           分页参数
      * @param queryCourseParamsDto 查询参数
@@ -227,9 +230,9 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         /*更新营销信息*/
         CourseMarket courseMarket = new CourseMarket();
         BeanUtils.copyProperties(editCourseDto, courseMarket);
-        if (editCourseDto.getOriginalPrice()!=null)
+        if (editCourseDto.getOriginalPrice() != null)
             courseMarket.setOriginalPrice(editCourseDto.getOriginalPrice().floatValue());
-        if(editCourseDto.getPrice()!=null)
+        if (editCourseDto.getPrice() != null)
             courseMarket.setPrice(editCourseDto.getPrice().floatValue());
         checkCharge(courseMarket.getPrice(), editCourseDto.getCharge());
         courseMarketService.saveOrUpdate(courseMarket);
@@ -238,5 +241,53 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         return getCourseBaseInfo(editCourseDto.getId());
 
 
+    }
+
+    /**
+     * @param id
+     * @return void
+     * @description 根据courseId删除
+     * @author: woldier
+     * @date: 2023/3/8 13:24
+     */
+    @Override
+    @Transactional
+    public void deleteCourseById(Long id) throws XueChengPlusException {
+        /*
+        0.验证此课程id是否合法
+        1.根据id删除课程教师信息
+        2.根据courseId删除课程计划信息
+        2.1查询课程计划信息
+        2.2调用删除章目录的服务
+        3.删除课程营销信息和课程基本信息
+         */
+        /*获取课程基本信息*/
+        CourseBase courseBase = courseBaseMapper.selectById(id);
+        if (courseBase == null) XueChengPlusException.cast("非法课程id");
+        /*1.根据id删除课程教师信息*/
+        /*根据课程id查询课程教师*/
+        LambdaQueryWrapper<CourseTeacher> teacherLambda = new LambdaQueryWrapper<>();
+        teacherLambda.eq(CourseTeacher::getCourseId,id);
+        List<CourseTeacher> courseTeacherList = courseTeacherService.list(teacherLambda);
+        if (courseTeacherList!=null&&!courseTeacherList.isEmpty())
+            /*list非空说明有教师数据,通过主键remove*/
+            courseTeacherList.forEach(e->courseTeacherService.removeById(e.getId()));
+        /*根据courseId删除课程计划信息*/
+        List<TeachplanDto> teachplanDtos = teachplanService.selectTreeNodes(id);
+        if(teachplanDtos!=null&&!teachplanDtos.isEmpty())
+            teachplanDtos.forEach(e->{
+                /*获取二级节点*/
+                List<TeachplanDto> teachPlanTreeNodes = e.getTeachPlanTreeNodes();
+                /*若二级节点不空,遍历删除*/
+                if (teachPlanTreeNodes!=null&&!teachPlanTreeNodes.isEmpty())
+                    teachPlanTreeNodes.forEach(kid -> teachplanService.removeById(kid.getId()));
+                teachplanService.removeById(e.getId());
+            });
+        /*删除课程营销信息和课程基本信息*/
+        LambdaQueryWrapper<CourseMarket> courseMarketLambda = new LambdaQueryWrapper<>();
+        courseMarketLambda.eq(CourseMarket::getId,id);
+        if(courseMarketService.count(courseMarketLambda)>0)
+            courseMarketService.removeById(id);
+        courseBaseMapper.deleteById(id);
     }
 }

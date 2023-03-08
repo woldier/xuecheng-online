@@ -56,4 +56,13 @@ public interface CourseBaseInfoService {
      * @date: 2023/3/6 20:19
      */
     CourseBaseInfoDto updateCourseBase(Long companyId, EditCourseDto editCourseDto) throws XueChengPlusException;
+
+    /**
+     * @param id
+     * @return void
+     * @description 根据courseId删除
+     * @author: woldier
+     * @date: 2023/3/8 13:24
+     */
+    void deleteCourseById(Long id) throws XueChengPlusException;
 }
