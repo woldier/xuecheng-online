@@ -5949,3 +5949,186 @@ Connection: keep-alive
 3. 测试较为简单
 
 主要是注意检查当给定不正确的courseId时是否会出现问题
+
+### 3.10 删除课程
+
+#### 3.10.1 需求分析
+
+##### 3.10.1.1 业务流程
+
+在课程管理界面,点击删除按钮删除课程
+
+![image-20230308122407546](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308122407546.png)
+
+![image-20230308122434405](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308122434405.png)
+
+##### 3.10.1.2 数据模型
+
+这里请求参数为path参数因此不需要额外的数据模型来接受数据
+
+#### 3.10.2 接口定义
+
+```http
+### 删除课程
+DELETE {{content_host}}/content//course/25
+```
+
+```java
+/**
+     * @param id 课程id
+     * @return void
+     * @description 根据课程id删除课程信息
+     * @author: woldier
+     * @date: 2023/3/8 13:19
+     */
+    @ApiOperation("删除课程")
+    @DeleteMapping("/course/{courseId}")
+    public void deleteCourse(@PathVariable("courseId") Long id) throws XueChengPlusException {
+        courseBaseInfoService.deleteCourseById(id);
+    }
+```
+
+
+
+#### 3.10.3 接口开发
+
+##### 3.10.3.1 DAO开发
+
+dao层采用mp原生
+
+##### 3.10.3.2 Service开发
+
+`com.xuecheng.content.service.CourseBaseInfoService`
+
+```java
+/**
+     * @param id
+     * @return void
+     * @description 根据courseId删除
+     * @author: woldier
+     * @date: 2023/3/8 13:24
+     */
+    void deleteCourseById(Long id) throws XueChengPlusException;
+```
+
+`com.xuecheng.content.service.impl.CourseBaseInfoServiceImpl`
+
+```java
+/**
+     * @param id
+     * @return void
+     * @description 根据courseId删除
+     * @author: woldier
+     * @date: 2023/3/8 13:24
+     */
+    @Override
+    @Transactional
+    public void deleteCourseById(Long id) throws XueChengPlusException {
+        /*
+        0.验证此课程id是否合法
+        1.根据id删除课程教师信息
+        2.根据courseId删除课程计划信息
+        2.1查询课程计划信息
+        2.2调用删除章目录的服务
+        3.删除课程营销信息和课程基本信息
+         */
+        /*获取课程基本信息*/
+        CourseBase courseBase = courseBaseMapper.selectById(id);
+        if (courseBase == null) XueChengPlusException.cast("非法课程id");
+        /*1.根据id删除课程教师信息*/
+        /*根据课程id查询课程教师*/
+        LambdaQueryWrapper<CourseTeacher> teacherLambda = new LambdaQueryWrapper<>();
+        teacherLambda.eq(CourseTeacher::getCourseId,id);
+        List<CourseTeacher> courseTeacherList = courseTeacherService.list(teacherLambda);
+        if (courseTeacherList!=null&&!courseTeacherList.isEmpty())
+            /*list非空说明有教师数据,通过主键remove*/
+            courseTeacherList.forEach(e->courseTeacherService.removeById(e.getId()));
+        /*根据courseId删除课程计划信息*/
+        List<TeachplanDto> teachplanDtos = teachplanService.selectTreeNodes(id);
+        if(teachplanDtos!=null&&!teachplanDtos.isEmpty())
+            teachplanDtos.forEach(e->{
+                /*获取二级节点*/
+                List<TeachplanDto> teachPlanTreeNodes = e.getTeachPlanTreeNodes();
+                /*若二级节点不空,遍历删除*/
+                if (teachPlanTreeNodes!=null&&!teachPlanTreeNodes.isEmpty())
+                    teachPlanTreeNodes.forEach(kid -> teachplanService.removeById(kid.getId()));
+                teachplanService.removeById(e.getId());
+            });
+        /*删除课程营销信息和课程基本信息*/
+        LambdaQueryWrapper<CourseMarket> courseMarketLambda = new LambdaQueryWrapper<>();
+        courseMarketLambda.eq(CourseMarket::getId,id);
+        if(courseMarketService.count(courseMarketLambda)>0)
+            courseMarketService.removeById(id);
+        courseBaseMapper.deleteById(id);
+    }
+```
+
+
+
+##### 3.10.3.3 接口代码完善
+
+`com.xuecheng.content.api.CourseBaseInfoController`
+
+```java
+/**
+     * @param id 课程id
+     * @return void
+     * @description 根据课程id删除课程信息
+     * @author: woldier
+     * @date: 2023/3/8 13:19
+     */
+    @ApiOperation("删除课程")
+    @DeleteMapping("/course/{courseId}")
+    public void deleteCourse(@PathVariable("courseId") Long id) throws XueChengPlusException {
+        courseBaseInfoService.deleteCourseById(id);
+    }
+```
+
+
+
+#### 3.10.4 接口测试
+
+![image-20230308141152109](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308141152109.png)
+
+```http
+DELETE http://localhost:63040/content/course/180
+
+HTTP/1.1 500 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Wed, 08 Mar 2023 06:13:07 GMT
+Connection: close
+
+{
+  "errMessage": "非法课程id"
+}
+```
+
+http测试给出一个代码健壮性测试,测试服务的安全性
+
+
+
+
+
+### XXX.XXX xxxxxx模块
+
+#### XXX.XXX.1 需求分析
+
+##### XXX.XXX.1.1 业务流程
+
+##### XXX.XXX.1.2 数据模型
+
+#### XXX.XXX.2 接口定义
+
+
+
+#### XXX.XXX.3 接口开发
+
+##### XXX.XXX.3.1 DAO开发
+
+##### XXX.XXX.3.2 Service开发
+
+##### XXX.XXX.3.3 接口代码完善
+
+#### XXX.XXX.4 接口测试
+
