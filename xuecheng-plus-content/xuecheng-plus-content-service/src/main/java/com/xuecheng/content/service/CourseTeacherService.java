@@ -2,6 +2,7 @@ package com.xuecheng.content.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.model.dto.TeacherSaveOrUpdateDto;
 import com.xuecheng.content.model.po.CourseTeacher;
 
 import java.util.List;
@@ -23,4 +24,13 @@ public interface CourseTeacherService extends IService<CourseTeacher> {
      * @date: 2023/3/8 9:15
      */
     List<CourseTeacher> listTeacherByCourseId(Long courseId) throws XueChengPlusException;
+
+    /**
+     * @param dto
+     * @return void
+     * @description 新增/更新教师信息
+     * @author: woldier
+     * @date: 2023/3/8 9:56
+     */
+    void saveOrUpdateTeacher(TeacherSaveOrUpdateDto dto) throws XueChengPlusException;
 }
