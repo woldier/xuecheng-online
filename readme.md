@@ -6108,6 +6108,595 @@ http测试给出一个代码健壮性测试,测试服务的安全性
 
 
 
+## 4.媒体资源管理模块
+
+
+
+### 4.1 模块背景
+
+#### 4.1.1 模块介绍
+
+媒资管理系统是每个在线教育平台所必须具备的，查阅百度百科对它的定义如下：
+
+媒体资源管理(Media Asset Management，MAM)系统是建立在多媒体、网络、数据库和数字存储等先进技术基础上的一个对各种媒体及内容(如视/音频资料、文本文件、图表等)进行数字化存储、管理以及应用的总体解决方案，包括数字媒体的采集、编目、管理、传输和编码转换等所有环节。其主要是满足[媒体](https://baike.baidu.com/item/媒体?fromModule=lemma_inlink)资源拥有者收集、保存、查找、编辑、发布各种信息的要求，为媒体资源的使用者提供访问内容的便捷方法，实现对媒体资源的高效管理，大幅度提高媒体资源的价值。
+
+每个教学机构都可以在媒资系统管理自己的教学资源，包括：视频、教案等文件。
+
+目前媒资管理的主要管理对象是视频、图片、文档等，包括：媒资文件的查询、文件上传、视频处理等。
+
+媒资查询：教学机构查询自己所拥有的媒资信息。
+
+文件上传：包括上传图片、上传文档、上传视频。
+
+视频处理：视频上传成功，系统自动对视频进行编码处理。
+
+文件删除：教学机构删除自己上传的媒资文件。
+
+
+
+下图是课程编辑与发布的整体流程，通过下图可以看到媒资在整体流程的位置：
+
+![image-20230308155249502](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155249502.png)
+
+#### 4.1.2 业务流程
+
+##### 4.1.2.1 上传图片
+
+教学机构人员在课程信息编辑页面上传课程图片，课程图片统一记录在媒资管理系统。
+
+下图是上传图片的界面：
+
+![image-20230308155403825](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155403825.png)
+
+
+
+
+
+##### 4.1.2.2 上传视频
+
+1、教学机构人员进入媒资管理列表查询自己上传的媒资文件。点击“媒资管理”
+
+![image-20230308155435711](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155435711.png)
+
+进入媒资管理列表页面查询本机构上传的媒资文件
+
+![image-20230308155458189](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155458189.png)
+
+2、教育机构用户在"媒资管理"页面中点击 "上传视频" 按钮。
+
+![image-20230308155511456](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155511456.png)
+
+点击“上传视频”打开上传页面
+
+![image-20230308155524527](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155524527.png)
+
+3、选择要上传的文件，自动执行文件上传。
+
+![image-20230308155535551](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155535551.png)
+
+
+
+4、视频上传成功会自动处理，处理完成可以预览视频。
+
+![image-20230308155548658](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155548658.png)
+
+##### 4.1.2.3 处理视频
+
+对需要转码处理的视频系统会自动对其处理，处理后生成视频的URL。
+
+处理视频没有用户界面，完全是后台自动执行。
+
+##### 4.1.2.4 审核媒资
+
+1.运营用户登入运营平台并进入媒资管理页面，查找待审核媒资
+
+![image-20230308155726262](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155726262.png)
+
+2.点击列表中媒资名称链接，可预览该媒资，若是视频，则播放视频。
+
+![image-20230308155744578](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155744578.png)
+
+3.点击列表中某媒资后的"审核" 按钮，既完成媒资的审批过程。
+
+![image-20230308155754729](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155754729.png)
+
+点击“审核”，选择审核结果，输入审核意见。
+
+##### 4.1.2.5 绑定媒资
+
+课程计划创建好后需要绑定媒资文件，比如：如果课程计划绑定了视频文件，进入课程在线学习界面后点课程计划名称则在线播放视频。如下图：
+
+![image-20230308155834440](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155834440.png)
+
+如何将课程计划绑定媒资呢？
+
+1.教育机构用户进入课程管理页面并编辑某一个课程，在"课程大纲"标签页的某一小节后可点击”添加视频“。
+
+![image-20230308155850372](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155850372.png)
+
+2.弹出添加视频对话框，可通过视频关键字搜索已审核通过的视频媒资。
+
+![image-20230308155903451](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155903451.png)
+
+3.选择视频媒资，点击提交按钮，完成课程计划绑定媒资流程。
+
+![image-20230308155913858](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155913858.png)
+
+课程计划关联视频后如下图：
+
+![image-20230308155928055](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308155928055.png)
+
+
+
+#### 4.1.3 数据模型
+
+本模块媒资文件相关的数据表如下
+
+![image-20230308160005238](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308160005238.png)
+
+媒资文件表：存储文件信息，包括图片、视频、文档等。
+
+media_process: 待处理视频表。
+
+media_process_history: 视频处理历史表，记录已经处理成功的视频信息。
+
+媒资文件与课程计划绑定关系表如下：
+
+![image-20230308160025883](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308160025883.png)
+
+### 4.2 环境搭建
+
+#### 4.2.1 架构问题分析
+
+当前要开发的是媒资管理服务，目前为止共三个三微服务：内容管理、系统管理、媒资管理，如下图：
+
+![image-20230308162150573](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308162150573.png)
+
+后期还会添加更多的微服务，当前这种由前端直接请求微服务的方式存在弊端：
+
+如果在前端对每个请求地址都配置绝对路径，非常不利于系统维护，比如下边代码中请求系统管理服务的地址使用的是localhost
+
+![image-20230308162208097](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308162208097.png)
+
+当系统上线后这里需要改成公网的域名，如果这种地址非常多则非常麻烦。
+
+基于这个问题可以采用网关来解决，如下图：
+
+![image-20230308162218744](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308162218744.png)
+
+这样在前端的代码中只需要指定每个接口的相对路径，如下所示：
+
+![image-20230308162239677](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308162239677.png)
+
+在前端代码的一个固定的地方在接口地址前统一加网关的地址，每个请求统一到网关，由网关将请求转发到具体的微服务。
+
+为什么所有的请求先到网关呢？
+
+有了网关就可以对请求进行路由，比如：可以根据请求路径路由、根据host地址路由等， 当微服务有多个实例时可以通过负载均衡算法进行路由，如下：
+
+另外，网关还可以实现权限控制、限流等功能。
+
+项目采用Spring Cloud Gateway作为网关，网关在请求路由时需要知道每个微服务实例的地址，项目使用Nacos作用服务发现中心和配置中心，整体的架构图如下：
+
+![image-20230308162336839](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308162336839.png)
+
+流程如下：
+
+1、微服务启动，将自己注册到Nacos，Nacos记录了各微服务实例的地址。
+
+2、网关从Nacos读取服务列表，包括服务名称、服务地址等。
+
+3、请求到达网关，网关将请求路由到具体的微服务。
+
+要使用网关首先搭建Nacos，Nacos有两个作用：
+
+1、服务发现中心。
+
+微服务将自身注册至Nacos，网关从Nacos获取微服务列表。
+
+2、配置中心。
+
+微服务众多，它们的配置信息也非常复杂，为了提供系统的可维护性，微服务的配置信息统一在Nacos配置。
+
+
+
+#### 4.2.2 搭建Nacos
+
+##### 4.2.2.1 服务发现中心
+
+根据上节讲解的网关的架构图，要使用网关首先搭建Nacos。
+
+首先搭建Nacos服务发现中心。
+
+在搭建Nacos服务发现中心之前需要搞清楚两个概念：namespace和group
+
+namespace：用于区分环境、比如：开发环境、测试环境、生产环境。
+
+group：用于区分项目，比如：xuecheng-plus项目、xuecheng2.0项目
+
+首先在nacos配置namespace:
+
+登录Centos，启动Naocs，使用sh /data/soft/restart.sh将自动启动Nacos。
+
+访问：http://ip:8848/nacos/
+
+账号密码：nacos/nacos
+
+登录成功，点击左侧菜单“命名空间”进入命名空间管理界面，
+
+![image-20230308162543252](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308162543252.png)
+
+点击“新建命名空间”，填写命名空间的相关信息。如下图：
+
+![image-20230308162554064](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308162554064.png)
+
+使用相同的方法再创建“测试环境”、"生产环境"的命名空间。
+
+![image-20230308162608472](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308162608472.png)
+
+
+
+![image-20230308162612150](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308162612150.png)
+
+创建成功，如下图：
+
+![image-20230308163911582](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308163911582.png)
+
+
+
+首先完成各服务注册到Naocs，下边将内容管理服务注册到nacos中。
+
+1) 在xuecheng-plus-parent中添加依赖管理 
+
+```xml
+<dependency>
+    <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+    <version>${spring-cloud-alibaba.version}</version>
+    <type>pom</type>
+    <scope>import</scope>
+</dependency>
+
+```
+
+2. 在内容管理模块的接口工程、系统管理模块的接口工程中添加如下依赖
+
+```xml
+<dependency>
+     <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+</dependency>
+
+```
+
+3. 配置nacos的地址
+
+在系统管理的接口工程的配置文件中配置如下信息：
+
+```yaml
+#微服务配置
+spring:
+  application:
+    name: system-service
+  cloud:
+    nacos:
+      server-addr: 192.168.101.65:8848
+      discovery:
+        namespace: dev
+        group: xuecheng-plus-project
+
+```
+
+在内容管理的接口工程的配置文件中配置如下信息：
+
+```yaml
+spring:
+  application:
+    name: content-service
+  cloud:
+    nacos:
+      server-addr: 192.168.101.65:8848
+      discovery:
+        namespace: dev
+        group: xuecheng-plus-project
+```
+
+4. 重启内容管理服务、系统管理服务
+
+待微服务启动成功，进入Nacos服务查看服务列表
+
+![image-20230308164221455](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308164221455.png)
+
+在 “开发环境” 命名空间下有两个服务实例。微服务在Nacos注册成功。
+
+点击其它一个微服务的“详情”
+
+![image-20230308164230992](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308164230992.png)
+
+通过上图可以查看微服务实例的地址。
+
+
+
+##### 4.2.2.2 配置中心
+
+###### 4.2.2.2.1 配置三要素
+
+搭建完成Nacos服务发现中心，下边搭建Nacos为配置中心，其目的就是通过Nacos去管理项目的所有配置。
+
+先将项目中的配置文件分分类：
+
+1、每个项目特有的配置
+
+是指该配置只在有些项目中需要配置，或者该配置在每个项目中配置的值不同。
+
+比如：spring.application.name每个项目都需要配置但值不一样，以及有些项目需要连接数据而有些项目不需要，有些项目需要配置消息队列而有些项目不需要。
+
+2、项目所公用的配置
+
+指在若干项目中配置内容相同的配置。比如：redis的配置，很多项目用的同一套redis服务所以配置也一样。
+
+另外还需要知道nacos如何去定位一个具体的配置文件，即配置的三要素：namespace、group、dataid. 
+
+1、通过namespace、group找到具体的环境和具体的项目。
+
+2、通过dataid找到具体的配置文件，dataid有三部分组成，
+
+比如：content-service-dev.yaml配置文件 由（content-service）-（dev）. (yaml)三部分组成
+
+content-service：第一部分，它是在application.yaml中配置的应用名，即spring.application.name的值。
+
+dev：第二部分，它是环境名，通过spring.profiles.active指定，
+
+Yaml: 第三部分，它是配置文件 的后缀，目前nacos支持properties、yaml等格式类型，本项目选择yaml格式类型。
+
+所以，如果我们要配置content-service工程的配置文件:
+
+在开发环境中配置content-service-dev.yaml
+
+在测试环境中配置content-service-test.yaml
+
+在生产环境中配置content-service-prod.yaml
+
+
+
+###### 4.2.2.2.2 配置content-service
+
+下边以开发环境为例对content-service工程的配置文件进行配置，进入nacos，进入开发环境。
+
+![image-20230308195023520](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308195023520.png)
+
+点击 加号，添加一个配置
+
+Data ID`content-service-dev.yaml`
+
+Group`xuecheng-plus-project`
+
+```yaml
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://remote.centos.com:3307/xc_content?serverTimezone=UTC&userUnicode=true&useSSL=false&
+    username: root
+    password: 123456
+```
+
+注意添加的DataId一定要有后缀
+
+
+
+![image-20230308195236964](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308195236964.png)
+
+输入data id、group以及配置文件内容。
+
+为什么没在nacos中配置下边的内容 ？
+
+```yaml
+spring:
+  application:
+    name: content-service
+
+```
+
+因为刚dataid第一部分就是spring.application.name，nacos 客户端要根据此值确定配置文件 名称，所以spring.application.name不在nacos中配置，而是要在工程的本地进行配置。
+
+本地配置文件现在是application.yaml需要修改为bootstrap.yaml，因为SpringBoot读取配置文件 的顺序如下：
+
+![image-20230308195407550](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308195407550.png)
+
+所以在content-service工程 的test目录中添加bootstrap.yaml进行单元测试，内容如下：
+
+```yaml
+spring:
+  application:
+    name: content-service
+  cloud:
+    nacos:
+      server-addr: remote.centos.com:8848
+      discovery:
+        namespace: dev #命名空间，可随意取与spring.profile不一定一致
+        group: xuecheng-plus-project
+      config:
+        namespace: dev  #命名空间，可随意取与spring.profile不一定一致
+        group: xuecheng-plus-project
+        file-extension: yaml
+        refresh-enabled: true
+
+#profiles默认为dev
+  profiles:
+    active: dev
+
+```
+
+最后删除原来的application.yaml。
+
+在内容管理模块的接口工程和service工程、系统管理的接口工程和service工程配置依赖：
+
+```xml
+<dependency>
+    <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+</dependency>
+
+```
+
+配置完成，运行content-service工程 的单元测试文件，能否正常测试。
+
+通过运行观察控制台打印出下边的信息：
+
+```shell
+[NacosRestTemplate.java:476] - HTTP method: POST, url: http://192.168.101.65:8848/nacos/v1/cs/configs/listener, body: {Listening-Configs=content-service.yaml?xuecheng-plus-project??dev?content-service-dev.yaml?xuecheng-plus-project?88459b1483b8381eccc2ef462bd59182?dev?content-service?xuecheng-plus-project??dev?, tenant=dev}
+```
+
+
+
+###### 4.2.2.2.3 配置content-api
+
+以相同的方法配置content-api工程的配置文件，在nacos中的开发环境中配置content-api-dev.yaml，内容如下：
+
+```yaml
+server:
+  servlet:
+    context-path: /content # 服务访问根路径
+  port: 63040
+# 日志文件配置路径
+logging:
+  config: classpath:log4j2-dev.xml
+# swagger 文档配置
+swagger:
+  title: "学成在线内容管理系统"
+  description: "内容系统管理系统对课程相关信息进行业务管理数据"
+  base-package: com.xuecheng.content
+  enabled: true
+  version: 1.0.0
+```
+
+
+
+![image-20230308214237689](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308214237689.png)
+
+在content-api工程 的本地配置bootstrap.yaml，内容如下：
+
+```yaml
+#微服务配置
+spring:
+  application:
+    name: content-api
+  cloud:
+    nacos:
+      server-addr: remote.centos.com:8848
+      discovery:
+        namespace: dev #命名空间 (与profile.active有区别配置文件的拉取不是根据命名空间来拼接的)
+        group: xuecheng-plus-project
+      config:
+        namespace: dev
+        group: xuecheng-plus-project
+        file-extension: yaml
+        refresh-enabled: true
+        extension-configs:
+          - data-id: content-service-${spring.profiles.active}.yaml
+            group: xuecheng-plus-project
+            refresh: true
+  profiles:
+    active: dev
+
+
+```
+
+注意：因为api接口工程依赖了service工程 的jar，所以这里使用extension-configs扩展配置文件 的方式引用service工程所用到的配置文件。
+
+如果添加多个扩展文件，继续在下添加即可，如下：
+
+```yaml
+extension-configs:
+          - data-id: content-service-${spring.profiles.active}.yaml
+            group: xuecheng-plus-project
+            refresh: true
+          - data-id: 填写文件 dataid
+            group: xuecheng-plus-project
+            refresh: true        
+
+```
+
+启动content-api工程，查询控制台是否打印出了请求nacos的日志，如下:
+
+```shell
+[NacosRestTemplate.java:476] - HTTP method: POST, url: http://192.168.101.65:8848/nacos/v1/cs/configs/listener
+```
+
+并使用Httpclient测试课程查询接口是否可以正常查询。
+
+##### 4.2.2.3 公用配置
+
+还有一个优化的点是如何在nacos中配置项目的公用配置呢？
+
+nacos提供了shared-configs可以引入公用配置。
+
+在content-api中配置了swagger，所有的接口工程 都需要配置swagger，这里就可以将swagger的配置定义为一个公用配置，哪个项目用引入即可。
+
+单独在xuecheng-plus-common分组下创建xuecheng-plus的公用配置，进入nacos的开发环境，添加swagger-dev.yaml公用配置
+
+![image-20230308215015982](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308215015982.png)
+
+删除`content-api-dev.yaml`中对swagger的配置。
+
+![image-20230308215550366](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308215550366.png)
+
+项目使用shared-configs可以引入公用配置。在接口工程的本地配置文件 中引入公用配置(其他配置类似,这里忽略了log4j的配置过程)，如下：
+
+```yaml
+#微服务配置
+spring:
+  application:
+    name: content-api
+  cloud:
+    nacos:
+      server-addr: remote.centos.com:8848
+      discovery:
+        namespace: dev #命名空间 (与profile.active有区别配置文件的拉取不是根据命名空间来拼接的)
+        group: xuecheng-plus-project
+      config:
+        namespace: dev
+        group: xuecheng-plus-project
+        file-extension: yaml
+        refresh-enabled: true
+        extension-configs:
+          - data-id: content-service-${spring.profiles.active}.yaml
+            group: xuecheng-plus-project
+            refresh: true
+        shared-configs:
+          - data-id: swagger-${spring.profiles.active}.yaml
+            group: xuecheng-plus-common
+            refresh: true
+          - data-id: logging-${spring.profiles.active}.yaml
+            group: xuecheng-plus-common
+            refresh: true
+
+  profiles:
+    active: dev
+
+
+```
+
+配置完成，重启content-api接口工程，访问http://localhost:63040/content/swagger-ui.html 查看swagger接口文档是否可以正常访问，查看控制台log4j2日志输出是否正常。
+
+##### 4.2.2.4 系统管理配置
+
+
+
+
+
+
+
+#### 4.2.3 接口开发
+
+##### 4.2.3.1 DAO开发
+
+##### 4.2.3.2 Service开发
+
+##### 4.2.3.3 接口代码完善
+
+#### 4.2.4 接口测试
+
 
 
 ### XXX.XXX xxxxxx模块
@@ -6131,4 +6720,6 @@ http测试给出一个代码健壮性测试,测试服务的安全性
 ##### XXX.XXX.3.3 接口代码完善
 
 #### XXX.XXX.4 接口测试
+
+
 
