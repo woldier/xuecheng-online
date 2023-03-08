@@ -105,7 +105,6 @@ POST {{content_host}}/content/courseTeacher
 Content-Type: application/json
 
 {
-
   "courseId": 72,
   "teacherName": "wangxu3",
   "position": "java高级讲师2",
@@ -130,3 +129,6 @@ Content-Type: application/json
 
 ### 删除课程教师信息 后面分别对应{courseId}/{id}
 DELETE {{content_host}}/content/courseTeacher/course/72/22
+
+### 删除课程
+DELETE {{content_host}}/content/course/180
