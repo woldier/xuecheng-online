@@ -5370,3 +5370,582 @@ controller层需要开发两个接口,两个接口都调用同一个service方�
     }
 ```
 
+### 3.9 师资管理
+
+#### 3.9.1 需求分析
+
+##### 3.9.1.1 业务流程
+
+1. 首先在第二步修改完课程计划信息会请求数据库获取课程教师信息
+
+![image-20230308084605366](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308084605366.png)
+
+2. 进入教师设置页面后可以点击修改教师信息,或者点击新增教师信息
+
+这两个业务共用一个接口,通过查看是否传入id来进行区分
+
+- 修改时如下
+
+![image-20230308094018791](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308094018791.png)
+
+- 新增时如下
+
+![image-20230308093951166](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308093951166.png)
+
+3. 课程教师信息删除
+
+![image-20230308103041679](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308103041679.png)
+
+##### 3.9.1.2 数据模型
+
+所使用到的课程教师数据模型如下
+
+![image-20230308084711671](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308084711671.png)
+
+其po类如下:
+
+`com.xuecheng.content.model.po.CourseTeacher`
+
+```java
+package com.xuecheng.content.model.po;
+
+import com.baomidou.mybatisplus.annotation.*;
+import lombok.Data;
+
+import java.io.Serializable;
+import java.time.LocalDateTime;
+
+/**
+ * <p>
+ * 课程-教师关系表
+ * </p>
+ *
+ * @author itcast
+ */
+@Data
+@TableName("course_teacher")
+public class CourseTeacher implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * 主键
+     */
+    @TableId(value = "id", type = IdType.AUTO)
+    private Long id;
+
+    /**
+     * 课程标识
+     */
+    private Long courseId;
+
+    /**
+     * 教师标识
+     */
+    private String teacherName;
+
+    /**
+     * 教师职位
+     */
+    private String position;
+
+    /**
+     * 教师简介
+     */
+    private String introduction;
+
+    /**
+     * 照片
+     */
+    private String photograph;
+
+    /**
+     * 创建时间
+     */
+    @TableField(fill = FieldFill.INSERT)
+    private LocalDateTime createDate;
+
+
+}
+
+```
+
+
+
+新增/修改是请求参数dto
+
+```java
+package com.xuecheng.content.model.dto;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import lombok.Data;
+
+import javax.validation.constraints.NotNull;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程教师信息请求参数dto
+ * @date 2023/3/8 9:46
+ **/
+@Data
+public class TeacherSaveOrUpdateDto {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * 主键
+     */
+    private Long id;
+
+    /**
+     * 课程标识
+     */
+    @NotNull(message = "新增或者修改时课程id不能为空")
+    private Long courseId;
+
+    /**
+     * 教师标识
+     */
+    @NotNull(message = "新增或者修改时课程教师名不能为空")
+    private String teacherName;
+
+    /**
+     * 教师职位
+     */
+    private String position;
+
+    /**
+     * 教师简介
+     */
+    private String introduction;
+
+    /**
+     * 照片
+     */
+    private String photograph;
+
+}
+
+```
+
+
+
+#### 3.9.2 接口定义
+
+1. 根据课程id查询所有课程教师
+
+```http
+### 课程教师信息查询
+GET {{content_host}}/content/courseTeacher/list/{courseId}
+Content-Type: application/json
+
+```
+
+新建一个接口
+
+```java
+package com.xuecheng.content.api;
+
+import com.xuecheng.content.model.po.CourseTeacher;
+import io.swagger.annotations.ApiOperation;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import javax.validation.constraints.NotNull;
+import java.util.List;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程教师相关接口
+ * @date 2023/3/8 8:52
+ **/
+@RestController
+@RequestMapping("/courseTeacher")
+@RequiredArgsConstructor
+public class CourseTeacherController {
+
+    /**
+    * @description 根据课程id查询教师
+    * @param courseId  课程id
+    * @return java.util.List<com.xuecheng.content.model.po.CourseTeacher>
+    * @author: woldier
+    * @date: 2023/3/8 8:55
+    */
+    @ApiOperation("根据课程id查询课程教师信息")
+    @GetMapping("/list/{courseId}")
+    public List<CourseTeacher> list(@PathVariable @NotNull(message = "课程id不能为空") Long courseId){
+        return null;
+    }
+}
+
+```
+
+2. 新增/修改课程教师信息
+
+```http
+### 新增/修改课程教师信息
+POST {{content_host}}/content/courseTeacher/list/{courseId}
+Content-Type: application/json
+
+{
+  "id": 1,
+  "courseId": 72,
+  "teacherName": "wangxu",
+  "position": "java高级讲师",
+  "introduction": "111111",
+  "photograph": "http://r3zc5rung.hd-bkt.clouddn.com/2424e25d-b3ff-4ea2-92a5-249af918a42dGDSzBXIgWuwMCiZ4",
+  "createDate": "2021-12-25 17:44:07"
+}
+```
+
+```java
+ /**
+    * @description 新增/修改教师信息
+    * @param dto  请求参数
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/8 9:48
+    */
+    @ApiOperation("新增/修改课程教师信息")
+    @PostMapping("/courseTeacher")
+    public void saveOrUpdate(@RequestBody @Validated TeacherSaveOrUpdateDto dto){
+
+    }
+```
+
+3. 课程删除
+
+```http
+### 删除课程教师信息 后面分别对应{courseId}/{id}
+DELETE {{content_host}}/content/courseTeacher/course/72/22
+```
+
+
+
+```java
+/**
+     * @param courseId 课程id
+     * @param id       教师id
+     * @return void
+     * @description 删除课程教师
+     * @author: woldier
+     * @date: 2023/3/8 10:35
+     */
+    @ApiOperation("新增/修改课程教师信息")
+    @DeleteMapping("/courseTeacher/course/{courseId}/{id}")
+    public void deleteById(@PathVariable Long courseId, @PathVariable Long id) {
+
+    }
+```
+
+
+
+#### 3.9.3 接口开发
+
+##### 3.9.3.1 DAO开发
+
+直接使用原生mapper
+
+#### 
+
+##### 3.9.3.2 service开发
+
+新建service
+
+```java
+package com.xuecheng.content.service;
+
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.xuecheng.content.model.po.CourseTeacher;
+
+/**
+ * <p>
+ * 课程-教师关系表 服务类
+ * </p>
+ *
+ * @author itcast
+ * @since 2023-02-16
+ */
+public interface CourseTeacherService extends IService<CourseTeacher> {
+
+}
+```
+
+其实现类
+
+```java
+package com.xuecheng.content.service.impl;
+
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.xuecheng.content.mapper.CourseTeacherMapper;
+import com.xuecheng.content.model.po.CourseTeacher;
+import com.xuecheng.content.service.CourseTeacherService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+/**
+ * <p>
+ * 课程-教师关系表 服务实现类
+ * </p>
+ *
+ * @author itcast
+ */
+@Slf4j
+@Service
+public class CourseTeacherServiceImpl extends ServiceImpl<CourseTeacherMapper, CourseTeacher> implements CourseTeacherService {
+
+}
+
+```
+
+1. 根据课程id查询所有课程教师
+
+接口
+
+```java
+/**
+     * @param courseId 课程id
+     * @return java.util.List<com.xuecheng.content.model.po.CourseTeacher>
+     * @description 根据课程id查询所有课程教师
+     * @author: woldier
+     * @date: 2023/3/8 9:15
+     */
+    List<CourseTeacher> listTeacherByCourseId(Long courseId) throws XueChengPlusException;
+```
+
+实现
+
+```java
+/**
+     * @param courseId 课程id
+     * @return java.util.List<com.xuecheng.content.model.po.CourseTeacher>
+     * @description 根据课程id查询所有课程教师
+     * @author: woldier
+     * @date: 2023/3/8 9:15
+     */
+    @Override
+    public List<CourseTeacher> listTeacherByCourseId(Long courseId) throws XueChengPlusException {
+        /*
+        根据courseId查询数据库
+         */
+        if(courseId==null||courseId<0)
+            XueChengPlusException.cast("课程id不合法");
+        LambdaQueryWrapper<CourseTeacher> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper.eq(CourseTeacher::getCourseId,courseId);
+
+        List<CourseTeacher> list = this.list(lambdaQueryWrapper);
+        if(list.isEmpty()) return null;
+
+        return list;
+    }
+```
+
+2. 新增/修改课程教师
+
+```java
+ /**
+     * @param dto
+     * @return void
+     * @description 新增/更新教师信息
+     * @author: woldier
+     * @date: 2023/3/8 9:56
+     */
+    void saveOrUpdateTeacher(TeacherSaveOrUpdateDto dto) throws XueChengPlusException;
+```
+
+
+
+```java
+
+private final CourseBaseMapper courseBaseMapper;
+
+/**
+     * @param dto 传入的参数
+     * @return void 返回
+     * @description 新增/更新教师信息
+     * @author: woldier
+     * @date: 2023/3/8 9:56
+     */
+    @Override
+    @Transactional
+    public void saveOrUpdateTeacher(TeacherSaveOrUpdateDto dto) throws XueChengPlusException {
+        /*
+        1. 判断dto中是否有id
+        2. 有表明是修改,先查询数据看,看对应id是否存在,不存在保存,存在则更新
+        3. 无表明是新增,直接update
+         */
+        Long id = dto.getId();
+        Long courseId = dto.getCourseId();
+        /*创建数据库对象*/
+        CourseTeacher courseTeacher = new CourseTeacher();
+        BeanUtils.copyProperties(dto, courseTeacher);
+        if (id != null) {
+            /*修改*/
+            LambdaQueryWrapper<CourseTeacher> q1 = new LambdaQueryWrapper<>();
+            q1.eq(CourseTeacher::getId, id).eq(CourseTeacher::getCourseId, courseId);
+            if (!this.update(courseTeacher, q1))
+                XueChengPlusException.cast("非法更新");
+        } else {
+            /*新增*/
+            if(courseBaseMapper.selectById(courseId)==null) XueChengPlusException.cast("当前课程不存在");
+
+            courseTeacher.setCreateDate(LocalDateTime.now());
+            if (!this.save(courseTeacher)) XueChengPlusException.cast("新增失败");
+
+
+        }
+
+    }
+```
+
+3. 课程教师删除
+
+```java
+/**
+     * @param courseId 课程id
+     * @param id       id
+     * @return void
+     * @description 删除课程教师
+     * @author: woldier
+     * @date: 2023/3/8 10:38
+     */
+    void deleteTeacher(Long courseId, Long id) throws XueChengPlusException;
+```
+
+```java
+/**
+     * @param courseId 课程id
+     * @param id       id
+     * @return void
+     * @description 删除课程教师
+     * @author: woldier
+     * @date: 2023/3/8 10:38
+     */
+    @Override
+    public void deleteTeacher(Long courseId, Long id) throws XueChengPlusException {
+        /*
+        1. 根据id与courseId删除数据
+         */
+        if (courseId == null || id == null)
+            XueChengPlusException.cast("id或者课程id为空");
+
+        /*查询课程id是否存在于数据库*/
+        if (courseBaseMapper.selectById(id) == null)
+            XueChengPlusException.cast("课程id不合法");
+
+
+        LambdaQueryWrapper<CourseTeacher> q = new LambdaQueryWrapper<>();
+        q.eq(CourseTeacher::getId, id).eq(CourseTeacher::getCourseId, courseId);
+        if (!this.remove(q))
+            XueChengPlusException.cast("数据库不存在对应数据");
+
+    }
+```
+
+
+
+##### 3.9.3.3 接口代码完善
+
+1. 查询课程教师
+
+```java
+private final CourseTeacherService courseTeacherService;
+
+    /**
+    * @description 根据课程id查询教师
+    * @param courseId  课程id
+    * @return java.util.List<com.xuecheng.content.model.po.CourseTeacher>
+    * @author: woldier
+    * @date: 2023/3/8 8:55
+    */
+    @ApiOperation("根据课程id查询课程教师信息")
+    @GetMapping("/list/{courseId}")
+    public List<CourseTeacher> list(@PathVariable @NotNull(message = "课程id不能为空") Long courseId) throws XueChengPlusException {
+        return courseTeacherService.listTeacherByCourseId(courseId);
+    }
+```
+
+2. 新增或者修改
+
+```java
+ /**
+    * @description 新增/修改教师信息
+    * @param dto  请求参数
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/8 9:48
+    */
+    @ApiOperation("新增/修改课程教师信息")
+    @PostMapping("/courseTeacher")
+    public void saveOrUpdate(@RequestBody @Validated TeacherSaveOrUpdateDto dto) throws XueChengPlusException {
+        courseTeacherService.saveOrUpdateTeacher(dto);
+    }
+```
+
+
+
+3. 课程教师删除
+
+```java
+/**
+     * @param courseId 课程id
+     * @param id       教师id
+     * @return void
+     * @description 删除课程教师
+     * @author: woldier
+     * @date: 2023/3/8 10:35
+     */
+    @ApiOperation("新增/修改课程教师信息")
+    @DeleteMapping("/courseTeacher/course/{courseId}/{id}")
+    public void deleteById(@PathVariable Long courseId, @PathVariable Long id) throws XueChengPlusException {
+        courseTeacherService.deleteTeacher(courseId,id);
+    }
+```
+
+
+
+#### 3.9.4 接口测试
+
+1. 查询教师信息
+
+```http
+GET http://localhost:63040/content/courseTeacher/list/72
+
+HTTP/1.1 200 
+Content-Type: application/json
+Transfer-Encoding: chunked
+Date: Wed, 08 Mar 2023 01:24:12 GMT
+Keep-Alive: timeout=60
+Connection: keep-alive
+
+[
+  {
+    "id": 1,
+    "courseId": 72,
+    "teacherName": "wangxu",
+    "position": "java高级讲师",
+    "introduction": "1111",
+    "photograph": "http://r3zc5rung.hd-bkt.clouddn.com/2424e25d-b3ff-4ea2-92a5-249af918a42dGDSzBXIgWuwMCiZ4",
+    "createDate": "2021-12-25 17:44:07"
+  }
+]
+```
+
+
+
+![image-20230308093010392](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230308093010392.png)
+
+2. 课程新增/修改测试
+
+- 测试课程新增,并且给定一个courseId为不存在
+
+- 测试课程新增,并且给定一个courseId为存在
+- 测试课程修改,并且给定courseId为其他值
+- 测试课程修改,并且给定courseId为正确值
+
+3. 测试较为简单
+
+主要是注意检查当给定不正确的courseId时是否会出现问题
