@@ -5261,15 +5261,112 @@ Content-Type: application/json
 
 ##### 3.8.3.1 dao开发
 
-
+到层使用原生mapper
 
 
 
 ##### 3.8.3.2 service开发
 
+service层只开发一个方法，通过传入参数(Boolean)moveDown确实是下移还是上移(为true时表示下移)
 
+`com.xuecheng.content.service.TeachplanService`
+
+```java
+ /**
+    * @description 课程计划上下移动
+    * @param id 课程计划id
+     * @param moveDown   是否是下移 Ture 代表下移 ,False 代表上移
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/7 22:29
+    */
+    void move(Long id,Boolean moveDown) throws XueChengPlusException;
+```
+
+
+
+`com.xuecheng.content.service.impl.TeachplanServiceImpl`
+
+```java
+/**
+     * @param id       课程计划id
+     * @param moveDown 是否是下移 Ture 代表下移 ,False 代表上移
+     * @return void
+     * @description 课程计划上下移动
+     * @author: woldier
+     * @date: 2023/3/7 22:29
+     */
+    @Override
+    public void move(Long id, Boolean moveDown) throws XueChengPlusException {
+        /*
+        1.根据id查询,若查询为空抛出异常
+        2.根据查询得到的courseId以及grade查询到所有的计划根据moveDown选择Asc还是Desc 为True选择Desc
+        3.通过filter进行流过滤,过滤条件是元素的order大于/小于本order ,moveDown为True时是大于,为False小于
+        4.检查filter后收集的list是否为空empty说明无法移动抛出异常,不为空取出list尾部元素两者交换order然后更新
+         */
+        /*1.根据id查询,若查询为空抛出异常*/
+        Teachplan teachplan = this.getById(id);
+        if (teachplan == null) XueChengPlusException.cast("课程计划不存在");
+        /*2.根据查询得到的courseId以及grade查询到所有的计划根据moveDown选择Asc还是Desc 为True选择Desc*/
+        Long courseId = teachplan.getCourseId();
+        Integer grade = teachplan.getGrade();
+        Integer orderby = teachplan.getOrderby();
+        LambdaQueryWrapper<Teachplan> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper
+                .eq(Teachplan::getCourseId, courseId)
+                .eq(Teachplan::getGrade, grade);
+        if (moveDown)
+            lambdaQueryWrapper.orderByDesc(Teachplan::getOrderby);
+        else
+            lambdaQueryWrapper.orderByAsc(Teachplan::getOrderby);
+
+        /*通过filter进行流过滤,过滤条件是元素的order大于/小于本order ,moveDown为True时是大于,为False小于 */
+        List<Teachplan> teachplanList = this.list(lambdaQueryWrapper);
+        List<Teachplan> teachplanList1 = teachplanList.stream().filter(e -> moveDown ? e.getOrderby() > orderby : e.getOrderby() < orderby).collect(Collectors.toList());
+        /*检查filter后收集的list是否为空empty说明无法移动抛出异常,不为空取出list尾部元素两者交换order然后更新*/
+        if (teachplanList1.isEmpty()) XueChengPlusException.cast("无法完成该操作");
+        Teachplan teachplan1 = teachplanList1.get(teachplanList1.size()-1);
+        teachplan.setOrderby(teachplan1.getOrderby());
+        teachplan1.setOrderby(orderby);
+        this.updateById(teachplan);
+        this.updateById(teachplan1);
+
+    }
+```
 
 
 
 ##### 3.8.3.3 接口代码完善
+
+controller层需要开发两个接口,两个接口都调用同一个service方法,通过moveDown参数标识上下移动
+
+`com.xuecheng.content.api.TeachplanController`
+
+```java
+/**
+    * @description 课程下移
+    * @param id
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/7 22:20
+    */
+    @ApiOperation("移动课程计划信息位置下移")
+    @PostMapping("/teachplan/movedown/{id}")
+    public void moveDown(@PathVariable Long id) throws XueChengPlusException {
+        teachplanService.move(id,Boolean.TRUE);
+    }
+
+    /**
+     * @description 课程上移
+     * @param id
+     * @return void
+     * @author: woldier
+     * @date: 2023/3/7 22:20
+     */
+    @ApiOperation("移动课程计划信息位置上移")
+    @PostMapping("/teachplan/moveup/{id}")
+    public void moveUp(@PathVariable Long id) throws XueChengPlusException {
+        teachplanService.move(id,Boolean.FALSE);
+    }
+```
 
