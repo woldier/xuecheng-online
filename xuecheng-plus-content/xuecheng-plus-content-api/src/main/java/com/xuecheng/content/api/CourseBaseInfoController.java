@@ -82,5 +82,16 @@ public class CourseBaseInfoController {
         return courseBaseInfoService.updateCourseBase(companyId, editCourseDto);
     }
 
-
+    /**
+     * @param id 课程id
+     * @return void
+     * @description 根据课程id删除课程信息
+     * @author: woldier
+     * @date: 2023/3/8 13:19
+     */
+    @ApiOperation("删除课程")
+    @DeleteMapping("/course/{courseId}")
+    public void deleteCourse(@PathVariable("courseId") Long id) throws XueChengPlusException {
+        courseBaseInfoService.deleteCourseById(id);
+    }
 }
