@@ -227,8 +227,10 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
         /*更新营销信息*/
         CourseMarket courseMarket = new CourseMarket();
         BeanUtils.copyProperties(editCourseDto, courseMarket);
-        courseMarket.setOriginalPrice(editCourseDto.getOriginalPrice().floatValue());
-        courseMarket.setPrice(editCourseDto.getPrice().floatValue());
+        if (editCourseDto.getOriginalPrice()!=null)
+            courseMarket.setOriginalPrice(editCourseDto.getOriginalPrice().floatValue());
+        if(editCourseDto.getPrice()!=null)
+            courseMarket.setPrice(editCourseDto.getPrice().floatValue());
         checkCharge(courseMarket.getPrice(), editCourseDto.getCharge());
         courseMarketService.saveOrUpdate(courseMarket);
 
