@@ -114,7 +114,7 @@ Content-Type: application/json
   "createDate": "2021-12-25 17:44:07"
 }
 
-### 新增修改课程教师信息
+### 修改课程教师信息
 POST {{content_host}}/content/courseTeacher
 Content-Type: application/json
 
@@ -127,3 +127,6 @@ Content-Type: application/json
   "photograph": "http://r3zc5rung.hd-bkt.clouddn.com/2424e25d-b3ff-4ea2-92a5-249af918a42dGDSzBXIgWuwMCiZ4",
   "createDate": "2021-12-25 17:44:07"
 }
+
+### 删除课程教师信息 后面分别对应{courseId}/{id}
+DELETE {{content_host}}/content/courseTeacher/course/72/22
