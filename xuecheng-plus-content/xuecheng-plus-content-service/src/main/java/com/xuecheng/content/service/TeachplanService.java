@@ -46,4 +46,14 @@ public interface TeachplanService extends IService<Teachplan> {
 
     void delete4Grade2(Long id);
 
+    /**
+    * @description 课程计划上下移动
+    * @param id 课程计划id
+     * @param moveDown   是否是下移 Ture 代表下移 ,False 代表上移
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/7 22:29
+    */
+    void move(Long id,Boolean moveDown) throws XueChengPlusException;
+
 }

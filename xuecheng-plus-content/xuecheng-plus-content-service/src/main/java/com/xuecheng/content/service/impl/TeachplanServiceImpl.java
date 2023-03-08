@@ -72,7 +72,10 @@ public class TeachplanServiceImpl extends ServiceImpl<TeachplanMapper, Teachplan
             lambdaQueryWrapper.eq(Teachplan::getCourseId, dto.getCourseId())
                     .eq(Teachplan::getParentid, dto.getParentid()).orderByDesc(Teachplan::getOrderby);
             /*取出所有节点,对orderBy字段排序,取出oder最大的作为count*/
-            Integer count = this.list(lambdaQueryWrapper).get(0).getOrderby();
+            List<Teachplan> list = this.list(lambdaQueryWrapper);
+            Integer count = 0;
+            if (list != null && !list.isEmpty())
+                count = list.get(0).getOrderby();
 
             /*设置排序号为总数加1*/
             teachplan.setOrderby(count + 1);
@@ -114,7 +117,7 @@ public class TeachplanServiceImpl extends ServiceImpl<TeachplanMapper, Teachplan
             /*删除章*/
             this.removeById(id);
             /*删除节*/
-            teachPlanTreeNodes.forEach(e->this.delete4Grade2(e.getId()));
+            teachPlanTreeNodes.forEach(e -> this.delete4Grade2(e.getId()));
         } else
             //delete4Grade2(id);
             /*事务传递*/
@@ -138,6 +141,51 @@ public class TeachplanServiceImpl extends ServiceImpl<TeachplanMapper, Teachplan
         /*若根据课程计划id查询到有数据,说明绑定了视频,进行删除*/
         if (teachplanMediaService.count(lb4Media) > 0)
             teachplanMediaService.remove(lb4Media);
+
+    }
+
+    /**
+     * @param id       课程计划id
+     * @param moveDown 是否是下移 Ture 代表下移 ,False 代表上移
+     * @return void
+     * @description 课程计划上下移动
+     * @author: woldier
+     * @date: 2023/3/7 22:29
+     */
+    @Override
+    public void move(Long id, Boolean moveDown) throws XueChengPlusException {
+        /*
+        1.根据id查询,若查询为空抛出异常
+        2.根据查询得到的courseId以及grade查询到所有的计划根据moveDown选择Asc还是Desc 为True选择Desc
+        3.通过filter进行流过滤,过滤条件是元素的order大于/小于本order ,moveDown为True时是大于,为False小于
+        4.检查filter后收集的list是否为空empty说明无法移动抛出异常,不为空取出list尾部元素两者交换order然后更新
+         */
+        /*1.根据id查询,若查询为空抛出异常*/
+        Teachplan teachplan = this.getById(id);
+        if (teachplan == null) XueChengPlusException.cast("课程计划不存在");
+        /*2.根据查询得到的courseId以及grade查询到所有的计划根据moveDown选择Asc还是Desc 为True选择Desc*/
+        Long courseId = teachplan.getCourseId();
+        Integer grade = teachplan.getGrade();
+        Integer orderby = teachplan.getOrderby();
+        LambdaQueryWrapper<Teachplan> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        lambdaQueryWrapper
+                .eq(Teachplan::getCourseId, courseId)
+                .eq(Teachplan::getGrade, grade);
+        if (moveDown)
+            lambdaQueryWrapper.orderByDesc(Teachplan::getOrderby);
+        else
+            lambdaQueryWrapper.orderByAsc(Teachplan::getOrderby);
+
+        /*通过filter进行流过滤,过滤条件是元素的order大于/小于本order ,moveDown为True时是大于,为False小于 */
+        List<Teachplan> teachplanList = this.list(lambdaQueryWrapper);
+        List<Teachplan> teachplanList1 = teachplanList.stream().filter(e -> moveDown ? e.getOrderby() > orderby : e.getOrderby() < orderby).collect(Collectors.toList());
+        /*检查filter后收集的list是否为空empty说明无法移动抛出异常,不为空取出list尾部元素两者交换order然后更新*/
+        if (teachplanList1.isEmpty()) XueChengPlusException.cast("无法完成该操作");
+        Teachplan teachplan1 = teachplanList1.get(teachplanList1.size()-1);
+        teachplan.setOrderby(teachplan1.getOrderby());
+        teachplan1.setOrderby(orderby);
+        this.updateById(teachplan);
+        this.updateById(teachplan1);
 
     }
 
