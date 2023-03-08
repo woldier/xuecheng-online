@@ -33,4 +33,14 @@ public interface CourseTeacherService extends IService<CourseTeacher> {
      * @date: 2023/3/8 9:56
      */
     void saveOrUpdateTeacher(TeacherSaveOrUpdateDto dto) throws XueChengPlusException;
+
+    /**
+     * @param courseId 课程id
+     * @param id       id
+     * @return void
+     * @description 删除课程教师
+     * @author: woldier
+     * @date: 2023/3/8 10:38
+     */
+    void deleteTeacher(Long courseId, Long id) throws XueChengPlusException;
 }

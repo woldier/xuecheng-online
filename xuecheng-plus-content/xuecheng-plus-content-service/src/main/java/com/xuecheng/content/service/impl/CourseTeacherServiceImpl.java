@@ -8,6 +8,7 @@ import com.xuecheng.content.mapper.CourseTeacherMapper;
 import com.xuecheng.content.model.dto.TeacherSaveOrUpdateDto;
 import com.xuecheng.content.model.po.CourseBase;
 import com.xuecheng.content.model.po.CourseTeacher;
+import com.xuecheng.content.model.po.Teachplan;
 import com.xuecheng.content.service.CourseBaseInfoService;
 import com.xuecheng.content.service.CourseTeacherService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CourseTeacherServiceImpl extends ServiceImpl<CourseTeacherMapper, CourseTeacher> implements CourseTeacherService {
     private final CourseBaseMapper courseBaseMapper;
+
     /**
      * @param courseId 课程id
      * @return java.util.List<com.xuecheng.content.model.po.CourseTeacher>
@@ -82,13 +84,41 @@ public class CourseTeacherServiceImpl extends ServiceImpl<CourseTeacherMapper, C
                 XueChengPlusException.cast("非法更新");
         } else {
             /*新增*/
-            if(courseBaseMapper.selectById(courseId)==null) XueChengPlusException.cast("当前课程不存在");
+            if (courseBaseMapper.selectById(courseId) == null) XueChengPlusException.cast("当前课程不存在");
 
             courseTeacher.setCreateDate(LocalDateTime.now());
             if (!this.save(courseTeacher)) XueChengPlusException.cast("新增失败");
 
 
         }
+
+    }
+
+    /**
+     * @param courseId 课程id
+     * @param id       id
+     * @return void
+     * @description 删除课程教师
+     * @author: woldier
+     * @date: 2023/3/8 10:38
+     */
+    @Override
+    public void deleteTeacher(Long courseId, Long id) throws XueChengPlusException {
+        /*
+        1. 根据id与courseId删除数据
+         */
+        if (courseId == null || id == null)
+            XueChengPlusException.cast("id或者课程id为空");
+
+        /*查询课程id是否存在于数据库*/
+        if (courseBaseMapper.selectById(id) == null)
+            XueChengPlusException.cast("课程id不合法");
+
+
+        LambdaQueryWrapper<CourseTeacher> q = new LambdaQueryWrapper<>();
+        q.eq(CourseTeacher::getId, id).eq(CourseTeacher::getCourseId, courseId);
+        if (!this.remove(q))
+            XueChengPlusException.cast("数据库不存在对应数据");
 
     }
 }
