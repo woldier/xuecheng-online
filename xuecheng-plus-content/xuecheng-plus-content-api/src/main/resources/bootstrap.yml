@@ -6,6 +6,12 @@ server:
 spring:
   application:
     name: content-api
+  cloud:
+    nacos:
+      server-addr: remote.centos.com:8848
+      discovery:
+        namespace: dev
+        group: xuecheng-plus-project
 # 日志文件配置路径
 logging:
   config: classpath:log4j2-dev.xml
