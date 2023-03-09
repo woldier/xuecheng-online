@@ -180,6 +180,12 @@
                 <artifactId>okhttp</artifactId>
                 <version>4.8.1</version>
             </dependency>
+            <!--   根据扩展名扩区mimetype     -->
+            <dependency>
+                <groupId>com.j256.simplemagic</groupId>
+                <artifactId>simplemagic</artifactId>
+                <version>1.17</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
