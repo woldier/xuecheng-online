@@ -6681,24 +6681,707 @@ spring:
 
 ##### 4.2.2.4 系统管理配置
 
+按照上边的方法 自行将系统管理服务的配置信息在nacos上进行配置。
+
+##### 4.2.2.5 配置优先级
+
+到目前为止已将所有微服务的配置统一在nacos进行配置，用到的配置文件有本地的配置文件 bootstrap.yaml和nacos上的配置文件，引入配置文件的形式有：
+
+1、通过dataid方式引入
+
+2、以扩展配置文件方式引入
+
+3、以共享配置文件 方式引入
+
+下边测试这几种配置文件方式的优先级。
+
+我们使用内容管理服务中的配置文件，首先在共享配置文件 swagger-dev.yaml中配置四个配置项，如下：
+
+![image-20230309134210974](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309134210974.png)
+
+配置完成发布。
+
+下边在content-api工程的启动类中添加如下代码读取这四个配置项的值
+
+```java
+public class ContentApplication {
+
+   @Value("${test_config.a}")
+   String a;
+   @Value("${test_config.b}")
+   String b;
+   @Value("${test_config.c}")
+   String c;
+   @Value("${test_config.d}")
+   String d;
+
+   @Bean
+   public Integer getTest(){
+      System.out.println("a="+a);
+      System.out.println("b="+b);
+      System.out.println("c="+c);
+      System.out.println("d="+d);
+      return new Integer(1);
+   }
+
+   public static void main(String[] args) {
+      SpringApplication.run(ContentApplication.class, args);
+   }
+
+
+}
+
+```
+
+启动content-api工程，在return new Integer(1);处打断点，运行到断点处，如下：
+
+![image-20230309134251802](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309134251802.png)
+
+
+
+这说明已经成功读取到 四个配置项的值。
+
+下边在content-api工程的扩展配置文件 conent-service-dev.yaml中配置三个配置项，如下：
+
+![image-20230309135407678](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309135407678.png)
+
+再次重启content-api工程，在return new Integer(1);处打断点，运行到断点处，如下：
+
+![image-20230309135419829](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309135419829.png)
+
+从结果可以看出，扩展配置文件比共享配置文件优先级高。
+
+ 
+
+下边继续content-api-dev.yaml中配置两个配置项，如下：
+
+```yaml
+test_config:
+  a: 4a
+  b: 4b
+  c: 4c
+  d: 4d
+
+```
+
+再次重启内容管理接口工程，在return new Integer(1);处打断点，运行到断点处，如下：
+
+![image-20230309135654218](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309135654218.png)
+
+这说明本地配置文件配置的内容没有起作用，原因是nacos配置文件中的相同的配置项覆盖了本地的配置项。
+
+到这可以总结各各配置文件 的优先级：项目应用名配置文件 > 扩展配置文件 > 共享配置文件 > 本地配置文件。
+
+有时候我们在测试程序时直接在本地加一个配置进行测试，这时我们想让本地最优先，可以在nacos配置文件 中配置如下即可实现：
+
+```yaml
+spring:
+ cloud:
+  config:
+    override-none: true
+
+```
+
+再次重启content-api工程，在return new Integer(1);处打断点，运行到断点处，如下：
+
+![image-20230309135741633](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309135741633.png)
+
+可以看出此时本地配置最优先
+
+除此之外,我们一般不会带本地配置写入到bootstrap.yml中而是通过jvm参数
+
+如我们要启动两个服务进行调试,那么端口号就不能一致,因此我们可以通过添加jvm参数指定端口号:
+
+```shell
+-Dserver.port=8088
+```
+
+如我们现在向启动两个content服务
+
+![image-20230309145108805](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309145108805.png)
+
+![image-20230309145353006](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309145353006.png)
+
+![image-20230309145419800](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309145419800.png)
+
+![image-20230309145613692](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309145613692.png)
+
+
+
+##### 4.2.2.6 导入配置文件
+
+课程资料中提供了系统用的所有配置文件nacos_config_export.zip，下边将nacos_config_export.zip导入nacos。
+
+进入具体的命名空间，点击“导入配置”
+
+![image-20230309140250256](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309140250256.png)
+
+打开导入窗口
+
+![image-20230309140325306](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309140325306.png)
+
+相同的配置跳过覆盖配置。
+
+点击“上传文件”选择nacos_config_export.zip开始导入。
+
+
+
+#### 4.2.3 搭建Gateway
+
+本项目使用Spring Cloud Gateway作为网关，下边创建网关工程。
+
+新建一个网关工程。
+
+![image-20230309141037907](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309141037907.png)
+
+项目结构如下
+
+![image-20230309141934603](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309141934603.png)
+
+添加依赖：
+
+```xml
+<dependencies>
+    <!--网关-->
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-gateway</artifactId>
+    </dependency>
+    <!--服务发现中心-->
+    <dependency>
+        <groupId>com.alibaba.cloud</groupId>
+        <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.alibaba.cloud</groupId>
+        <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+    </dependency>
+     <!-- 排除 Spring Boot 依赖的日志包冲突 -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter</artifactId>
+        <exclusions>
+            <exclusion>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-logging</artifactId>
+            </exclusion>
+        </exclusions>
+    </dependency>
+
+    <!-- Spring Boot 集成 log4j2 -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-log4j2</artifactId>
+    </dependency>
+
+
+</dependencies>
+
+
+```
+
+配置网关的bootstrap.yaml配置文件
+
+```yaml
+#微服务配置
+spring:
+  application:
+    name: gateway
+  cloud:
+    nacos:
+      server-addr: 192.168.101.65:8848
+      discovery:
+        namespace: ${spring.profiles.active}
+        group: xuecheng-plus-project
+      config:
+        namespace: ${spring.profiles.active}
+        group: xuecheng-plus-project
+        file-extension: yaml
+        refresh-enabled: true
+        shared-configs:
+          - data-id: logging-${spring.profiles.active}.yaml
+            group: xuecheng-plus-common
+            refresh: true
+  profiles:
+    active: dev
+
+```
+
+在nacos上配置网关路由策略：
+
+![image-20230309141606145](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309141606145.png)
+
+```yaml
+server:
+  port: 63010 # 网关端口
+spring:
+  cloud:
+    gateway:
+#      filter:
+#        strip-prefix:
+#          enabled: true
+      routes: # 网关路由配置
+        - id: content-api # 路由id，自定义，只要唯一即可
+          # uri: http://127.0.0.1:8081 # 路由的目标地址 http就是固定地址
+          uri: lb://content-api # 路由的目标地址 lb就是负载均衡，后面跟服务名称
+          predicates: # 路由断言，也就是判断请求是否符合路由规则的条件
+            - Path=/content/** # 这个是按照路径匹配，只要以/content/开头就符合要求
+#          filters:
+#            - StripPrefix=1
+        - id: system-api
+          # uri: http://127.0.0.1:8081
+          uri: lb://system-api
+          predicates:
+            - Path=/system/**
+#          filters:
+#            - StripPrefix=1
+        - id: media-api
+          # uri: http://127.0.0.1:8081
+          uri: lb://media-api
+          predicates:
+            - Path=/media/**
+#          filters:
+#            - StripPrefix=1
+        - id: search-service
+          # uri: http://127.0.0.1:8081
+          uri: lb://search
+          predicates:
+            - Path=/search/**
+#          filters:
+#            - StripPrefix=1
+        - id: auth-service
+          # uri: http://127.0.0.1:8081
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**
+#          filters:
+#            - StripPrefix=1
+        - id: checkcode
+          # uri: http://127.0.0.1:8081
+          uri: lb://checkcode
+          predicates:
+            - Path=/checkcode/**
+#          filters:
+#            - StripPrefix=1
+        - id: learning-api
+          # uri: http://127.0.0.1:8081
+          uri: lb://learning-api
+          predicates:
+            - Path=/learning/**
+#          filters:
+#            - StripPrefix=1
+        - id: orders-api
+          # uri: http://127.0.0.1:8081
+          uri: lb://orders-api
+          predicates:
+            - Path=/orders/**
+#          filters:
+#            - StripPrefix=1
+```
+
+启动网关工程，通过网关工程访问微服务进行测试。
+
+在http-client-env.json中配置网关的地址
+
+```http
+### 查询所有
+#POST {{content_host}}/content/course/list?pageNo=1&pageSize=2
+POST {{gateway_host}}/content/course/list?pageNo=1&pageSize=2
+Content-Type: application/json
+
+{
+  "auditStatus": null,
+  "courseName": "java",
+  "publishStatus": null
+}
+
+```
+
+```shell
+POST http://localhost:63010/content/course/list?pageNo=1&pageSize=2
+
+HTTP/1.1 200 OK
+transfer-encoding: chunked
+Content-Type: application/json
+Date: Thu, 09 Mar 2023 06:21:44 GMT
+
+{
+  "items": [
+    {
+      "id": 1,
+      "companyId": 1232141425,
+      "companyName": null,
+      "name": "JAVA8/9/10新特性讲解",
+      "users": "java爱好者,有一定java基础",
+      "tags": "有个java 版本变化的新内容，帮助大家使用最新的思想和工具",
+      "mt": "1",
+      "st": "1-3-2",
+      "grade": "204002",
+      "teachmode": "200002",
+      "description": null,
+      "pic": "https://cdn.educba.com/academy/wp-content/uploads/2018/08/Spring-BOOT-Interview-questions.jpg",
+      "createDate": "2019-09-03 17:48:19",
+      "changeDate": "2023-03-08 12:16:43",
+      "createPeople": "1",
+      "changePeople": null,
+      "auditStatus": "202004",
+      "status": "203001"
+    },
+    {
+      "id": 18,
+      "companyId": 1232141425,
+      "companyName": null,
+      "name": "java零基础入门",
+      "users": "java小白java小白java小白java小白",
+      "tags": "aa",
+      "mt": "1-3",
+      "st": "1-3-2",
+      "grade": "200001",
+      "teachmode": "200002",
+      "description": "java零基础入门java零基础入门java零基础入门java零基础入门",
+      "pic": "/mediafiles/2022/09/13/a16da7a132559daf9e1193166b3e7f52.jpg",
+      "createDate": "2019-09-04 09:56:19",
+      "changeDate": "2022-09-15 17:43:18",
+      "createPeople": null,
+      "changePeople": null,
+      "auditStatus": "202004",
+      "status": "203001"
+    }
+  ],
+  "counts": 6,
+  "page": 1,
+  "pageSize": 2
+}
+```
+
+网关工程搭建完成即可将前端工程中的接口地址改为网关的地址
+
+![image-20230309142633578](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309142633578.png)
+
+启动前端工程，测试之前开发内容管理模块的功能。
+
+![image-20230309142650735](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309142650735.png)
+
+
+
+#### 4.2.4 搭建媒资工程
+
+至此网关、Nacos已经搭建完成，下边将媒资工程导入项目。
+
+从课程资料中获取媒资工程 xuecheng-plus-media，拷贝到项目工程根目录。
+
+右键pom.xml转为maven工程。
+
+![image-20230309142937651](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309142937651.png)
+
+创建媒资数据库，并导入xcplus_media.sql
+
+![image-20230309145949422](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309145949422.png)
+
+重启media-api工程。
 
 
 
 
 
+### 4.3 分布式文件系统
 
-#### 4.2.3 接口开发
+#### 4.3.1 什么是分布式文件系统
 
-##### 4.2.3.1 DAO开发
+要理解分布式文件系统首先了解什么是文件系统。
 
-##### 4.2.3.2 Service开发
+查阅百度百科：
 
-##### 4.2.3.3 接口代码完善
+![image-20230309161232945](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309161232945.png)
 
-#### 4.2.4 接口测试
+文件系统是负责管理和存储文件的系统软件，操作系统通过文件系统提供的接口去存取文件，用户通过操作系统访问磁盘上的文件。
+
+下图指示了文件系统所处的位置：
+
+![image-20230309161245621](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309161245621.png)
+
+常见的文件系统：FAT16/FAT32、NTFS、HFS、UFS、APFS、XFS、Ext4等 。
+
+现在有个问题，一此短视频平台拥有大量的视频、图片，这些视频文件、图片文件该如何存
+
+储呢？如何存储可以满足互联网上海量用户的浏览。
+
+今天讲的分布式文件系统就是海量用户查阅海量文件的方案。
+
+我们阅读百度百科去理解分布式文件系统的定义：
+
+![image-20230309161304244](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309161304244.png)
+
+通过概念可以简单理解为：一个计算机无法存储海量的文件，通过网络将若干计算机组织起来共同去存储海量的文件，去接收海量用户的请求，这些组织起来的计算机通过网络进行通信，如下图：
+
+![image-20230309161315754](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309161315754.png)
 
 
 
+好处：
+
+1、一台计算机的文件系统处理能力扩充到多台计算机同时处理。
+
+ 2、一台计算机挂了还有另外副本计算机提供数据。
+
+ 3、每台计算机可以放在不同的地域，这样用户就可以就近访问，提高访问速度。
+
+市面上有哪些分布式文件系统的产品呢？
+
+1、NFS
+
+阅读百度百科：
+
+![image-20230309162416128](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309162416128.png)
+
+![image-20230309162420197](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309162420197.png)
+
+
+
+特点：
+
+1）在客户端上映射NFS服务器的驱动器。
+
+2）客户端通过网络访问NFS服务器的硬盘完全透明。
+
+2、GFS
+
+![image-20230309162441038](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309162441038.png)
+
+![image-20230309162447188](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309162447188.png)
+
+1）GFS采用主从结构，一个GFS集群由一个master和大量的chunkserver组成。
+
+2）master存储了数据文件的元数据，一个文件被分成了若干块存储在多个chunkserver中。
+
+3）用户从master中获取数据元信息，向chunkserver存储数据。
+
+3) HDFS
+
+HDFS，是Hadoop Distributed File System的简称，是Hadoop抽象文件系统的一种实现。HDFS是一个高度容错性的系统，适合部署在廉价的机器上。HDFS能提供高吞吐量的数据访问，非常适合大规模数据集上的应用。 HDFS的文件分布在集群机器上，同时提供副本进行容错及可靠性保证。例如客户端写入读取文件的直接操作都是分布在集群各个机器上的，没有单点性能压力。
+
+下图是HDFS的架构图：
+
+![image-20230309162521420](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309162521420.png)
+
+1）HDFS采用主从结构，一个HDFS集群由一个名称结点和若干数据结点组成。
+
+2) 名称结点存储数据的元信息，一个完整的数据文件分成若干块存储在数据结点。
+
+3）客户端从名称结点获取数据的元信息及数据分块的信息，得到信息客户端即可从数据块来存取数据。
+
+
+
+**4****、云计算厂家**
+
+阿里云对象存储服务（Object Storage Service，简称 OSS），是阿里云提供的海量、安全、低成本、高可靠的云存储服务。其数据设计持久性不低于 99.9999999999%（12 个 9），服务设计可用性（或业务连续性）不低于 99.995%。
+
+*官方网站：*[*https://www.aliyun.com/product/oss*](https://www.aliyun.com/product/oss) 
+
+百度对象存储BOS提供稳定、安全、高效、高可扩展的云存储服务。您可以将任意数量和形式的非结构化数据存入BOS，并对数据进行管理和处理。BOS支持标准、低频、冷和归档存
+
+储等多种存储类型，满足多场景的存储需求。 
+
+*官方网站：*[*https://cloud.baidu.com/product/bos.html*](https://cloud.baidu.com/product/bos.html) 
+
+
+
+#### 4.3.2 MinIO
+
+##### 4.3.2.1 介绍
+
+本项目采用MinIO构建分布式文件系统，MinIO 是一个非常轻量的服务,可以很简单的和其他应用的结合使用，它兼容亚马逊 S3 云存储服务接口，非常适合于存储大容量非结构化的数据，例如图片、视频、日志文件、备份数据和容器/虚拟机镜像等。
+
+它一大特点就是轻量，使用简单，功能强大，支持各种平台，单个文件最大5TB，兼容 Amazon S3接口，提供了 Java、Python、GO等多版本SDK支持。
+
+官网：https://min.io
+
+中文：https://www.minio.org.cn/，http://docs.minio.org.cn/docs/
+
+
+
+MinIO集群采用去中心化共享架构，每个结点是对等关系，通过Nginx可对MinIO进行负载均衡访问。
+
+去中心化有什么好处？
+
+在大数据领域，通常的设计理念都是无中心和分布式。Minio分布式模式可以帮助你搭建一个高可用的对象存储服务，你可以使用这些存储设备，而不用考虑其真实物理位置。
+
+它将分布在不同服务器上的多块硬盘组成一个对象存储服务。由于硬盘分布在不同的节点上，分布式Minio避免了单点故障。如下图：
+
+![image-20230309164159781](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309164159781.png)
+
+Minio使用纠删码技术来保护数据，它是一种恢复丢失和损坏数据的数学算法，它将数据分块冗余的分散存储在各各节点的磁盘上，所有的可用磁盘组成一个集合，上图由8块硬盘组成一个集合，当上传一个文件时会通过纠删码算法计算对文件进行分块存储，除了将文件本身分成4个数据块，还会生成4个校验块，数据块和校验块会分散的存储在这8块硬盘上。
+
+使用纠删码的好处是即便丢失一半数量（N/2）的硬盘，仍然可以恢复数据。 比如上边集合中有4个以内的硬盘损害仍可保证数据恢复，不影响上传和下载，如果多于一半的硬盘坏了则无法恢复。
+
+
+
+##### 4.3.2.2 数据恢复演示
+
+
+
+下边在本机演示MinIO恢复数据的过程，在本地创建4个目录表示4个硬盘。
+
+![image-20230309164502100](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309164502100.png)
+
+首先下载MinIO，下载地址：https://dl.min.io/server/minio/release/，也可从课程资料找到MinIO的安装文件。
+
+CMD进入有minio.exe的目录，运行下边的命令：
+
+![image-20230309170211322](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309170211322.png)
+
+```
+minio.exe server D:\minIO\data1  D:\minIO\data2  D:\minIO\data3  D:\minIO\data4
+```
+
+```shell
+WARNING: MINIO_ACCESS_KEY and MINIO_SECRET_KEY are deprecated.
+         Please use MINIO_ROOT_USER and MINIO_ROOT_PASSWORD
+Formatting 1st pool, 1 set(s), 4 drives per set.
+WARNING: Host local has more than 2 drives of set. A host failure will result in data becoming unavailable.
+WARNING: Detected default credentials 'minioadmin:minioadmin', we recommend that you change these values with 'MINIO_ROOT_USER' and 'MINIO_ROOT_PASSWORD' environment variables
+
+```
+
+1）老版本使用的MINIO_ACCESS_KEY 和 MINIO_SECRET_KEY不推荐使用，推荐使用MINIO_ROOT_USER 和MINIO_ROOT_PASSWORD设置账号和密码。
+
+2）pool即minio节点组成的池子，当前有一个pool和4个硬盘组成的set集合
+
+3）因为集合是4个硬盘，大于2的硬盘损坏数据将无法恢复。
+
+4）账号和密码默认为minioadmin、minioadmin，可以在环境变量中设置通过
+
+'MINIO_ROOT_USER' and 'MINIO_ROOT_PASSWORD' 进行设置。
+
+下边输入http://localhost:9000进行登录。
+
+![image-20230309170245340](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309170245340.png)
+
+下一步创建bucket，桶，它相当于存储文件的目录，可以创建若干的桶。
+
+![image-20230309170334197](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309170334197.png)
+
+![image-20230309170407052](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309170407052.png)
+
+输入bucket的名称，点击“CreateBucket”，创建成功
+
+![image-20230309170437357](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309170437357.png)
+
+点击“upload”上传文件。
+
+![image-20230309170548656](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309170548656.png)
+
+![image-20230309170613277](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309170613277.png)
+
+下边去四个目录观察文件的存储情况
+
+![image-20230309172843289](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309172843289.png)
+
+
+
+我们发现上传的1.mp4文件存储在了四个目录，即四个硬盘上。
+
+下边测试minio的数据恢复过程：
+
+1、首先删除一个目录。
+
+删除目录后仍然可以在web控制台上传文件和下载文件。
+
+稍等片刻删除的目录自动恢复。
+
+2、删除两个目录。
+
+删除两个目录也会自动恢复。
+
+3、删除三个目录 。
+
+由于 集合中共有4块硬盘，有大于一半的硬盘损坏数据无法恢复。
+
+此时报错：We encountered an internal error, please try again. (Read failed. Insufficient number of drives online)在线驱动器数量不足。
+
+
+
+
+
+##### 4.3.2.3 分布式集群测试
+
+条件允许的情况下可以测试MinIO分布式存储的特性，首先准备环境。
+
+分布式MinIO要求至少四个磁盘，建议至少4个节点，每个节点2个磁盘。
+
+准备四台虚拟机：192.168.101.65、192.168.101.66、192.168.101.67、192.168.101.68
+
+将课程资料下的minio的执行文件拷贝到四台虚拟机的/home/minio/目录下。
+
+在四台虚拟机分别创建下边的脚本run.sh，内容如下：
+
+```shell
+#!/bin/bash
+# 创建日志目录
+mkdir -p /boot/mediafiles/logs
+# 创建存储目录
+mkdir -p /boot/mediafiles/data/d{1,2,3,4}
+# 创建配置目录
+mkdir -p /etc/minio
+export MINIO_ROOT_USER=minioadmin
+export MINIO_ROOT_PASSWORD=minioadmin
+
+# 在四台机器上都执行该文件，以分布式的方式启动minio
+# --address 为api端口（如Java客户端）访问的端口
+# --console-address web控制台端口
+/home/minio/minio server \
+http://192.168.101.65:9000/home/mediafiles/data/export1 \
+http://192.168.101.65:9000/home/mediafiles/data/export2 \
+http://192.168.101.66:9000/home/mediafiles/data/export1 \
+http://192.168.101.66:9000/home/mediafiles/data/export2 \
+http://192.168.101.67:9000/home/mediafiles/data/export1 \
+http://192.168.101.67:9000/home/mediafiles/data/export2 \
+http://192.168.101.68:9000/home/mediafiles/data/export1 \
+http://192.168.101.68:9000/home/mediafiles/data/export2 
+
+```
+
+访问任意一个都可以操作 minio集群。
+
+下边进行测试：
+
+1、向集群上传一个文件，观察每个节点的两个磁盘目录都存储了数据。
+
+2、停止 一个节点，不影响上传和下载。
+
+假如停止了65节点，通过其它节点上传文件，稍后启动65后自动从其它结点同步文件。
+
+3、停止 两个节点，无法上传，可以下载。
+
+此时上传文件客户端报错如下：
+
+![image-20230309173209233](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309173209233.png)
+
+上传文件需要至少一半加1个可用的磁盘。
+
+将停止的两个节点的minio启动，稍等片刻 minio恢复可用。
+
+![image-20230309173224820](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309173224820.png)
+
+##### 4.3.2.5 Docker集群环境
+
+
+
+##### 4.3.2.6 创建业务桶
+
+本项目创建两个buckets：(设置privacy 为public)
+
+mediafiles： 普通文件
+
+video：视频文件
+
+![image-20230309173729297](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309173729297.png)
+
+
+
+
+
+```
 ### XXX.XXX xxxxxx模块
 
 #### XXX.XXX.1 需求分析
@@ -6720,6 +7403,9 @@ spring:
 ##### XXX.XXX.3.3 接口代码完善
 
 #### XXX.XXX.4 接口测试
+```
+
+
 
 
 
