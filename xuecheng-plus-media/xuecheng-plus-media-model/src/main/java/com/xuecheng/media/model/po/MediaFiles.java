@@ -22,8 +22,8 @@ public class MediaFiles implements Serializable {
     /**
      * 主键
      */
-    @TableId(value = "id", type = IdType.AUTO)
-    private Long id;
+    @TableId(value = "id", type = IdType.NONE)
+    private String id;
 
     /**
      * 机构ID
@@ -41,7 +41,7 @@ public class MediaFiles implements Serializable {
     private String filename;
 
     /**
-     * 文件类型（文档，音频，视频）
+     * 文件类型（图片、文档，视频）
      */
     private String fileType;
 
@@ -51,12 +51,17 @@ public class MediaFiles implements Serializable {
     private String tags;
 
     /**
-     * 存储源
+     * 存储目录
      */
     private String bucket;
 
     /**
-     * 文件标识
+     * 存储路径
+     */
+    private String filePath;
+
+    /**
+     * 文件id
      */
     private String fileId;
 
@@ -64,8 +69,6 @@ public class MediaFiles implements Serializable {
      * 媒资文件访问地址
      */
     private String url;
-
-    private String timelength;
 
     /**
      * 上传人
@@ -85,7 +88,7 @@ public class MediaFiles implements Serializable {
     private LocalDateTime changeDate;
 
     /**
-     * 状态,1:未处理，视频处理完成更新为2
+     * 状态,1:正常，0:不展示
      */
     private String status;
 
@@ -103,6 +106,11 @@ public class MediaFiles implements Serializable {
      * 审核意见
      */
     private String auditMind;
+
+    /**
+     * 文件大小
+     */
+    private Long fileSize;
 
 
 }
