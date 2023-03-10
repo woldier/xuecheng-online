@@ -111,9 +111,10 @@ public class MediaFileServiceImpl implements MediaFileService {
         boolean minIOUpload = minIOUpload(localFilePath, mimeType, fileBucket, objectName);
         if (!minIOUpload) XueChengPlusException.cast("MinIO上传出错");
         //上传到数据库
-        MediaFiles files = insertMediaFile2DB(companyId, uploadFileParamsDto, md5, fileBucket, objectName);
-//        MediaFileService proxy = (MediaFileService)AopContext.currentProxy();
-//        MediaFiles files = proxy.insertMediaFile2DB(companyId, uploadFileParamsDto, md5, fileBucket,objectName);
+        //MediaFiles files = insertMediaFile2DB(companyId, uploadFileParamsDto, md5, fileBucket, objectName);
+        //通过代理对象调用
+        MediaFileService proxy = (MediaFileService)AopContext.currentProxy();
+        MediaFiles files = proxy.insertMediaFile2DB(companyId, uploadFileParamsDto, md5, fileBucket,objectName);
         //结果为空表示上传失败
         if (files == null) XueChengPlusException.cast("文件上传后保存信息到数据库失败");
         UploadFileResultDto uploadFileResultDto = new UploadFileResultDto();
