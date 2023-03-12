@@ -7,3 +7,11 @@ Content-Disposition: form-data;name="filedata"; filename="6.jpg"
 Content-Type: application/octet-stream
 
 < d:/java_lesson/upload/6.jpg
+
+
+### 检查文件是否存在(通过md5)
+POST {{gateway_host}}/media//upload/checkfile?fileMd5=0dbc6409995eaa9589676c585459e02b
+
+
+
+
