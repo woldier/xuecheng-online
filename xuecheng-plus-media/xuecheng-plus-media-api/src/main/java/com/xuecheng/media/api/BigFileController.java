@@ -3,6 +3,8 @@ package com.xuecheng.media.api;
 import com.xuecheng.base.exception.CommonError;
 import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.base.model.RestResponse;
+import com.xuecheng.media.model.dto.MediaResourceType;
+import com.xuecheng.media.model.dto.UploadFileParamsDto;
 import com.xuecheng.media.service.MediaFileService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -114,6 +116,11 @@ public class BigFileController {
             @RequestParam("fileName") String fileName,
             @RequestParam("chunkTotal")  Integer chunkTotal
     ){
-        return null;
+
+        return mediaFileService.mergeChunk(fileMd5,chunkTotal,getCompanyId(),fileName);
+    }
+
+    private long getCompanyId(){
+        return 1232141425L;
     }
 }
