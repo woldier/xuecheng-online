@@ -110,12 +110,12 @@ public class BigFileController {
     * @date: 2023/3/11 12:18
     */
     @ApiOperation("合并分片")
-    @PostMapping("/upload/mergechunk")
+    @PostMapping("/upload/mergechunks")
     public RestResponse mergeChunks(
             @RequestParam("fileMd5")  String fileMd5,
             @RequestParam("fileName") String fileName,
             @RequestParam("chunkTotal")  Integer chunkTotal
-    ){
+    ) throws IOException {
 
         return mediaFileService.mergeChunk(fileMd5,chunkTotal,getCompanyId(),fileName);
     }
