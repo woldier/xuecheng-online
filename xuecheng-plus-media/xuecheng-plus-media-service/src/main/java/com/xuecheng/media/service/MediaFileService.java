@@ -78,4 +78,27 @@ public interface MediaFileService extends IService<MediaFiles> {
      * @date: 2023/3/11 22:34
      */
     RestResponse checkChunk(String md5, Integer chunk);
+
+
+    /**
+    * @description 上传文件分块
+    * @param md5 md值
+     * @param chunk 分片id
+     * @param localFilePath 本地文件路径
+    * @return com.xuecheng.base.model.RestResponse
+    * @author: woldier
+    * @date: 2023/3/12 10:50
+    */
+    RestResponse uploadChuck(String md5, Integer chunk,String localFilePath);
+
+
+    /**
+    * @description 分块合并
+    * @param md5 md5id
+     * @param chunkTotal   分块总数
+    * @return com.xuecheng.base.model.RestResponse
+    * @author: woldier
+    * @date: 2023/3/12 13:01
+    */
+    RestResponse mergeChunk(String md5, Integer chunkTotal);
 }

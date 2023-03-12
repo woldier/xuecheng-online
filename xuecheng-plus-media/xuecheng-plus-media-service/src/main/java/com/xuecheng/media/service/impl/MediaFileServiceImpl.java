@@ -16,16 +16,14 @@ import com.xuecheng.media.model.dto.UploadFileParamsDto;
 import com.xuecheng.media.model.dto.UploadFileResultDto;
 import com.xuecheng.media.model.po.MediaFiles;
 import com.xuecheng.media.service.MediaFileService;
-import io.minio.GetObjectArgs;
-import io.minio.GetObjectResponse;
-import io.minio.MinioClient;
-import io.minio.UploadObjectArgs;
+import io.minio.*;
 import io.minio.errors.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -202,30 +200,13 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
          * */
         //从数据库查询
         MediaFiles mediaFiles = this.getById(md5);
-//        if (mediaFiles != null) {//若不为空
-//            String objectName = md5TObjectName(md5);//解析md5值得到存储在minio中的对象,带后缀.mp4
-//
-//            InputStream objectResponse = null;
-//            try {
-//                objectResponse = minioClient.getObject(GetObjectArgs.builder().bucket(videoBucket).object(objectName).build());
-//                if (objectResponse != null) return RestResponse.success(Boolean.TRUE);
-//            } catch (Exception e) {
-//
-//            }
-//            return RestResponse.success(Boolean.FALSE);
-//
-//        }
-        if(mediaFiles!=null){//数据库中查询到不为空
+        if (mediaFiles != null) {//数据库中查询到不为空
             //获取桶
             String bucket = mediaFiles.getBucket();
             //获取存储路径
             String filePath = mediaFiles.getFilePath();
-            try(InputStream inputStream = minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(filePath).build())){ //通过这种方法创建额流会在try catch后自动释放
-                //若input流对象不为空,说明minio中有数据,那么返回存在
-                if (inputStream != null) return RestResponse.success(Boolean.TRUE);
-            }catch (Exception e){
-                log.debug("在minio中获取对象出错bucket:{},objectName{},errInfo{}",bucket,filePath,e.getMessage());
-            }
+            Boolean status = checkFileInMinio(bucket, filePath);
+            if (Boolean.TRUE.equals(status)) return RestResponse.success(Boolean.TRUE);
         }
 
         //查询到数据库为空,或者查询minio报错返回错误
@@ -233,36 +214,96 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
     }
 
     /**
-     * @param md5    md5值
-     * @param suffix 文件后缀
-     * @return java.lang.String
-     * @description 根据md5值得到存储在minio中的对象
+     * @param bucket   桶
+     * @param filePath 对象路径
+     * @return Boolean 若存在返回True 不存在返回False
+     * @description 检查minio中是否存在
      * @author: woldier
-     * @date: 2023/3/11 22:57
+     * @date: 2023/3/12 10:35
      */
-    private String md5TObjectName(String md5, String suffix) {
-        if (suffix.contains(".")) {
-            //若传入的后缀带.我们将.去掉
-            suffix = suffix.substring(suffix.indexOf("."));
+    @Nullable
+    private Boolean checkFileInMinio(String bucket, String filePath) {
+        try (InputStream inputStream = minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(filePath).build())) { //通过这种方法创建额流会在try catch后自动释放
+            //若input流对象不为空,说明minio中有数据,那么返回存在
+            if (inputStream != null) return Boolean.TRUE;
+        } catch (Exception e) {
+            log.debug("在minio中获取对象出错bucket:{},objectName{},errInfo{}", bucket, filePath, e.getMessage());
         }
-        return md5.substring(0, 1) + "/" + md5.substring(1, 2) + "/" + md5 + "." + suffix;
-
+        return Boolean.FALSE;
     }
 
     /**
-     * @param md5
+     * @param md5 md5值
      * @return java.lang.String
-     * @description 根据md5值得到存储在minio中的对象, 默认对象后缀为mp4
+     * @description 根据md5值得到存储在minio中的分片对象文件夹路径
+     * 如文件md5为 0dbc6409995eaa9589676c585459e02b 则得到的文件夹路径为 0/d/0dbc6409995eaa9589676c585459e02b/chunk/
      * @author: woldier
-     * @date: 2023/3/11 23:02
+     * @date: 2023/3/11 22:57
      */
-    private String md5TObjectName(String md5) {
-        return md5TObjectName(md5, "mp4");
+    private String getChunkFolderByMd5(String md5) {
+
+        return md5.charAt(0) + "/" + md5.charAt(1) + "/" + md5 + "/chunk/";
+
     }
 
+
+    /**
+     * @param md5   文件md值
+     * @param chunk 分片id
+     * @return com.xuecheng.base.model.RestResponse
+     * @description 检查文件分片是否存在;
+     * 首先分片数据记录并不会存在于数据库中,
+     * 因此只能通过访问minio来进行查询,
+     * 我们可以通过minio的getobject方法,有则说明可以
+     * @author: woldier
+     * @date: 2023/3/11 22:34
+     */
     @Override
     public RestResponse checkChunk(String md5, Integer chunk) {
-        return null;
+        /*
+         * 由于分片文件信息不会记录在db中,因此我们之后访问minio进行查询
+         * 1.通过md5得到分片文件存放的文件夹
+         * 2.将文件夹路径与分片号chunk合并,得到分片路径
+         * 例如 分片为23 md5为0dbc6409995eaa9589676c585459e02b
+         * 则拼接的对象 路径为 0/d/0dbc6409995eaa9589676c585459e02b/chunk/23
+         * 3.通过Minio查看是否可以成功获取若能说明存在返回成功,否则返回失败
+         * */
+        //获取分片文件夹路径
+        String chunkFolder = getChunkFolderByMd5(md5);
+        //得到分片存储路径
+        String objectName = chunkFolder + chunk;
+        Boolean exist = checkFileInMinio(videoBucket, objectName);
+        if (Boolean.TRUE.equals(exist)) return RestResponse.success(Boolean.TRUE);
+
+        return RestResponse.success(Boolean.FALSE);
+    }
+
+    /**
+     * @param md5           md值
+     * @param chunk         分片id
+     * @param localFilePath 本地文件路径
+     * @return com.xuecheng.base.model.RestResponse
+     * @description 上传文件分块
+     * @author: woldier
+     * @date: 2023/3/12 10:50
+     */
+    @Override
+    public RestResponse uploadChuck(String md5, Integer chunk, String localFilePath) {
+        /*
+         * 1.通过md5获取分片存储文件夹
+         * 2.拼接得到分片文件存储路径
+         * 2.上传文件到minio
+         * */
+        //获取文件路径
+        String chunkFolder = getChunkFolderByMd5(md5);
+        //拼接得到文件存储路径
+        String objectName = chunkFolder + chunk;
+        //生成文件contentType
+        String mimeType = getMimeType(null); //为空会返回
+        //上传到服务器
+        if (minIOUpload(localFilePath, mimeType, videoBucket, objectName))
+            return RestResponse.success(Boolean.TRUE);
+        return RestResponse.success(Boolean.FALSE);
     }
 
     @NotNull
@@ -277,7 +318,7 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
     }
 
     /**
-     * @param fileName 带后缀文件名
+     * @param fileName 带后缀文件名 若为空 返回 MediaType.APPLICATION_OCTET_STREAM_VALUE;
      * @return java.lang.String
      * @description 根据文件后缀名获取MimeType
      * @author: woldier
@@ -301,7 +342,6 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
      * @date: 2023/3/10 13:33
      */
     private boolean minIOUpload(String localFilePath, String fileType, String bucket, String objectName) {
-
         /*上传*/
         try {
             minioClient.uploadObject(
