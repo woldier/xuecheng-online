@@ -10,10 +10,7 @@ import com.xuecheng.base.model.PageParams;
 import com.xuecheng.base.model.PageResult;
 import com.xuecheng.base.model.RestResponse;
 import com.xuecheng.media.mapper.MediaFilesMapper;
-import com.xuecheng.media.model.dto.MediaAuditStatus;
-import com.xuecheng.media.model.dto.QueryMediaParamsDto;
-import com.xuecheng.media.model.dto.UploadFileParamsDto;
-import com.xuecheng.media.model.dto.UploadFileResultDto;
+import com.xuecheng.media.model.dto.*;
 import com.xuecheng.media.model.po.MediaFiles;
 import com.xuecheng.media.service.MediaFileService;
 import io.minio.*;
@@ -217,23 +214,18 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
     }
 
     /**
-     * @param bucket   桶
-     * @param filePath 对象路径
+     * @param bucket     桶
+     * @param objectName 对象路径
      * @return Boolean 若存在返回True 不存在返回False
      * @description 检查minio中是否存在
      * @author: woldier
      * @date: 2023/3/12 10:35
      */
     @Nullable
-    private Boolean checkFileInMinio(String bucket, String filePath) {
-        try (InputStream inputStream = minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(filePath).build())) { //通过这种方法创建额流会在try catch后自动释放
-            //若input流对象不为空,说明minio中有数据,那么返回存在
-            if (inputStream != null) return Boolean.TRUE;
-        } catch (Exception e) {
-            log.debug("在minio中获取对象出错bucket:{},objectName{},errInfo{}", bucket, filePath, e.getMessage());
-        }
-        return Boolean.FALSE;
+    private Boolean checkFileInMinio(String bucket, String objectName) {
+        return checkFileInMinio(GetObjectArgs.builder().bucket(bucket).object(objectName).build());
     }
+
     private Boolean checkFileInMinio(GetObjectArgs getObjectArgs) {
         try (InputStream inputStream = minioClient.getObject(getObjectArgs)) { //通过这种方法创建额流会在try catch后自动释放
             //若input流对象不为空,说明minio中有数据,那么返回存在
@@ -242,6 +234,37 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
             log.debug("在minio中获取对象出错bucket:{},objectName{},errInfo{}", getObjectArgs.bucket(), getObjectArgs.object(), e.getMessage());
         }
         return Boolean.FALSE;
+    }
+
+    /**
+     * @param bucket     桶
+     * @param objectName 对象名
+     * @return long
+     * @description 获取minio对象大小
+     * 此方法中不会做任何事,而是调用 private long  getObjectSizeInMinio(StatObjectArgs statObjectArgs)
+     * @author: woldier
+     * @date: 2023/3/12 15:08
+     */
+    private long getObjectSizeInMinio(String bucket, String objectName) {
+        return getObjectSizeInMinio(StatObjectArgs.builder().bucket(bucket).object(objectName).build());
+    }
+
+    /**
+     * @param statObjectArgs minio 对象状态参数类
+     * @return long
+     * @description 获取minio对象大小
+     * @author: woldier
+     * @date: 2023/3/12 15:08
+     */
+    private long getObjectSizeInMinio(StatObjectArgs statObjectArgs) {
+        long size = -1;
+        try {
+            StatObjectResponse statObjectResponse = minioClient.statObject(statObjectArgs);
+            size = statObjectResponse.size();
+        } catch (Exception e) {
+            log.debug("获取minio对象信息时出错,bucket{},objectName{},errMsg{}", statObjectArgs.bucket(), statObjectArgs.object(), e.getMessage());
+        }
+        return size;
     }
 
     /**
@@ -258,7 +281,7 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
 
     }
 
-    private String getFolderByMd5(String md5){
+    private String getFolderByMd5(String md5) {
         return md5.charAt(0) + "/" + md5.charAt(1) + "/";
     }
 
@@ -272,7 +295,6 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
      * 因此只能通过访问minio来进行查询,
      * 我们可以通过minio的getobject方法,有则说明可以
      * @author: woldier
-     *
      * @date: 2023/3/11 22:34
      */
     @Override
@@ -325,65 +347,68 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
 
 
     /**
-     * @description 分块合并
-     * @param md5 md5id
-     * @param chunkTotal   分块总数
+     * @param md5        md5id
+     * @param chunkTotal 分块总数
      * @return com.xuecheng.base.model.RestResponse
+     * @description 分块合并
      * @author: woldier
      * @date: 2023/3/12 13:01
      */
     @Override
-    public RestResponse mergeChunk(String md5, Integer chunkTotal,Long companyId, String fileName) {
+    public RestResponse mergeChunk(String md5, Integer chunkTotal, Long companyId, String fileName) {
         /*
-        *1.生成分片数组
-        * 2.查询分片是否存在
-        * 3.合并分片
-        * 4.写入数据库
-        * */
+         *1.生成分片数组
+         * 2.查询分片是否存在
+         * 3.合并分片
+         * 4.写入数据库
+         * */
         String chunkFolder = getChunkFolderByMd5(md5);
         //生成用于查询是否存在的参数集合
         List<ComposeSource> composeSourceList = Stream.iterate(0, t -> t + 1).limit(chunkTotal).map(
                 e -> ComposeSource.builder().bucket(videoBucket).object(chunkFolder + e).build()).collect(Collectors.toList());
         //检查分片是否存在
         for (ComposeSource elem : composeSourceList) {
-            if(checkFileInMinio(videoBucket,elem.object()).equals(Boolean.FALSE)) return RestResponse.success(Boolean.FALSE)
+            if (checkFileInMinio(videoBucket, elem.object()).equals(Boolean.FALSE))
+                return RestResponse.success(Boolean.FALSE);
         }
         //合并分片
         //拿到文件存储路径
         String folder = getFolderByMd5(md5);
         String objectName = folder + md5;
         //minio合并,若失败则返回
-        if(composeObjectInMinio(videoBucket,objectName,composeSourceList)) RestResponse.success(false);
+        if (composeObjectInMinio(videoBucket, objectName, composeSourceList)) RestResponse.success(false);
         //操作数据库
         MediaFileService currentProxy = (MediaFileService) AopContext.currentProxy();
         UploadFileParamsDto uploadFileParamsDto = new UploadFileParamsDto();
         //设置文件名
         uploadFileParamsDto.setFilename(fileName);
         //设置文件大小
-        uploadFileParamsDto.setFileType();
-        uploadFileParamsDto.setFileSize();
-        uploadFileParamsDto.setContentType();
-        uploadFileParamsDto.setTags();
-        uploadFileParamsDto.setUsername();
-        currentProxy.insertMediaFile2DB(companyId,,md5,videoBucket,objectName);
-        return null;
+        long size = getObjectSizeInMinio(videoBucket, objectName);
+        uploadFileParamsDto.setFileSize(size);
+        //文件类型
+        uploadFileParamsDto.setFileType(MediaResourceType.VIDEO.getCode());
+        //文件标签
+        uploadFileParamsDto.setTags("课程视频");
+        currentProxy.insertMediaFile2DB(companyId, uploadFileParamsDto, md5, videoBucket, objectName);
+        return RestResponse.success(true);
     }
 
     /**
      * minio合并文件
-     * @param bucket 桶
-     * @param objectName 对象名
+     *
+     * @param bucket            桶
+     * @param objectName        对象名
      * @param composeSourceList 分片信息list
      * @return
      */
-    private boolean composeObjectInMinio(String bucket,String objectName,List<ComposeSource> composeSourceList ){
+    private boolean composeObjectInMinio(String bucket, String objectName, List<ComposeSource> composeSourceList) {
         /*minio文件合并*/
         ComposeObjectArgs composeObjectArgs = ComposeObjectArgs.builder().bucket(bucket).object(objectName).sources(composeSourceList).build();
         try {
             minioClient.composeObject(composeObjectArgs);
         } catch (Exception e) {
             e.printStackTrace();
-            log.debug("合并数据分片出现错误,bucket{},objectName{},errMsg{}",bucket,objectName,e.getMessage());
+            log.debug("合并数据分片出现错误,bucket{},objectName{},errMsg{}", bucket, objectName, e.getMessage());
             return false;
         }
         return true;
