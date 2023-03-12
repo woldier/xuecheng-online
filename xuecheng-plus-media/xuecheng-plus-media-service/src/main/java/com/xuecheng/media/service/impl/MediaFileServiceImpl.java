@@ -40,6 +40,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -54,6 +57,10 @@ import java.util.stream.Stream;
 @Slf4j
 public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFiles> implements MediaFileService {
 
+    /**
+     * 线程执行
+     */
+    final static ExecutorService pool = Executors.newFixedThreadPool(5);
     @Autowired
     private MediaFilesMapper mediaFilesMapper;
 
@@ -279,7 +286,7 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
     }
 
     private String getFolderByMd5(String md5) {
-        return md5.charAt(0) + "/" + md5.charAt(1) + "/";
+        return md5.charAt(0) + "/" + md5.charAt(1) + "/"+md5+"/";
     }
 
 
@@ -372,12 +379,12 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
         //合并分片
         //拿到文件存储路径
         String folder = getFolderByMd5(md5); // 得到文件夹
-        String suffix = fileName.substring(fileName.indexOf(".")); //得到后缀
+        String suffix = fileName.substring(fileName.lastIndexOf(".")); //得到后缀
         String objectName = folder + md5 + suffix;
         //minio合并,若失败则返回
         if (composeObjectInMinio(videoBucket, objectName, composeSourceList)) RestResponse.success(false);
         long size = -1L;
-        File download = File.createTempFile("download","temp");//创建一个临时文件
+        File download = File.createTempFile("download",".temp");//创建一个临时文件
         try (
                 InputStream getObjectResponse = minioClient.getObject(GetObjectArgs.builder().bucket(videoBucket).object(objectName).build()); //minio文件输入流
                 FileOutputStream fileOutputStream = new FileOutputStream(download) //本地文件输出流
@@ -388,7 +395,12 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
                 deleteObjInMinio(videoBucket, objectName); //删除对应文件
                 return RestResponse.validfail("合并后的文件md5值与原md5值不一致");
             }
+
             size = download.length();
+            //异步线程将本地文件上传到minio 解决etag不一致问题
+
+            minIOUpload(download.getPath(),getMimeType(fileName),videoBucket,objectName);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
