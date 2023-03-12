@@ -18,6 +18,7 @@ import io.minio.errors.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.Streams;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
@@ -30,10 +31,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.file.Files;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -239,32 +237,31 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
     /**
      * @param bucket     桶
      * @param objectName 对象名
-     * @return long
-     * @description 获取minio对象大小
-     * 此方法中不会做任何事,而是调用 private long  getObjectSizeInMinio(StatObjectArgs statObjectArgs)
+     * @return StatObjectResponse
+     * @description 获取minio对象信息
+     * 此方法中不会做任何事,而是调用 private long  getObjStatInMinio(StatObjectArgs statObjectArgs)
      * @author: woldier
      * @date: 2023/3/12 15:08
      */
-    private long getObjectSizeInMinio(String bucket, String objectName) {
-        return getObjectSizeInMinio(StatObjectArgs.builder().bucket(bucket).object(objectName).build());
+    private StatObjectResponse getObjStatInMinio(String bucket, String objectName) {
+        return getObjStatInMinio(StatObjectArgs.builder().bucket(bucket).object(objectName).build());
     }
 
     /**
      * @param statObjectArgs minio 对象状态参数类
-     * @return long
-     * @description 获取minio对象大小
+     * @return StatObjectResponse
+     * @description 获取minio对象信息
      * @author: woldier
      * @date: 2023/3/12 15:08
      */
-    private long getObjectSizeInMinio(StatObjectArgs statObjectArgs) {
-        long size = -1;
+    private StatObjectResponse getObjStatInMinio(StatObjectArgs statObjectArgs) {
+        StatObjectResponse statObjectResponse = null;
         try {
-            StatObjectResponse statObjectResponse = minioClient.statObject(statObjectArgs);
-            size = statObjectResponse.size();
+             statObjectResponse = minioClient.statObject(statObjectArgs);
         } catch (Exception e) {
             log.debug("获取minio对象信息时出错,bucket{},objectName{},errMsg{}", statObjectArgs.bucket(), statObjectArgs.object(), e.getMessage());
         }
-        return size;
+        return statObjectResponse;
     }
 
     /**
@@ -355,12 +352,13 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
      * @date: 2023/3/12 13:01
      */
     @Override
-    public RestResponse mergeChunk(String md5, Integer chunkTotal, Long companyId, String fileName) {
+    public RestResponse mergeChunk(String md5, Integer chunkTotal, Long companyId, String fileName) throws IOException {
         /*
          *1.生成分片数组
          * 2.查询分片是否存在
          * 3.合并分片
-         * 4.写入数据库
+         * 4.获取合并后文件的信息
+         * 5.写入数据库
          * */
         String chunkFolder = getChunkFolderByMd5(md5);
         //生成用于查询是否存在的参数集合
@@ -373,26 +371,83 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
         }
         //合并分片
         //拿到文件存储路径
-        String folder = getFolderByMd5(md5);
-        String objectName = folder + md5;
+        String folder = getFolderByMd5(md5); // 得到文件夹
+        String suffix = fileName.substring(fileName.indexOf(".")); //得到后缀
+        String objectName = folder + md5 + suffix;
         //minio合并,若失败则返回
         if (composeObjectInMinio(videoBucket, objectName, composeSourceList)) RestResponse.success(false);
+        long size = -1L;
+        File download = File.createTempFile("download","temp");//创建一个临时文件
+        try (
+                InputStream getObjectResponse = minioClient.getObject(GetObjectArgs.builder().bucket(videoBucket).object(objectName).build()); //minio文件输入流
+                FileOutputStream fileOutputStream = new FileOutputStream(download) //本地文件输出流
+        ){
+            IOUtils.copy(getObjectResponse,fileOutputStream);  //input -> output
+            String downLoadMd5 = DigestUtils.md5Hex(Files.newInputStream(download.toPath())); //得到下载文件的md5值
+            if(!downLoadMd5.equals(md5)) { //如果两个md5值不相同
+                deleteObjInMinio(videoBucket, objectName); //删除对应文件
+                return RestResponse.validfail("合并后的文件md5值与原md5值不一致");
+            }
+            size = download.length();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        finally {
+            boolean delete = download.delete(); //删除临时文件
+        }
+        //md5值相等说明合并分片成功
+
+
         //操作数据库
         MediaFileService currentProxy = (MediaFileService) AopContext.currentProxy();
         UploadFileParamsDto uploadFileParamsDto = new UploadFileParamsDto();
         //设置文件名
         uploadFileParamsDto.setFilename(fileName);
         //设置文件大小
-        long size = getObjectSizeInMinio(videoBucket, objectName);
+        StatObjectResponse objStatInMinio = getObjStatInMinio(videoBucket, objectName); //得到对象信息
+        if (objStatInMinio== null) {
+            log.debug("从minio中获取合并后的文件信息失败,bucket{},objectName{}",videoBucket,objectName);
+            return RestResponse.success(false);
+        }
         uploadFileParamsDto.setFileSize(size);
         //文件类型
         uploadFileParamsDto.setFileType(MediaResourceType.VIDEO.getCode());
         //文件标签
         uploadFileParamsDto.setTags("课程视频");
         currentProxy.insertMediaFile2DB(companyId, uploadFileParamsDto, md5, videoBucket, objectName);
+
+
+        //删除分片数据
+
+        composeSourceList.forEach(e->{
+            deleteObjInMinio(videoBucket,e.object());
+        });
+
         return RestResponse.success(true);
     }
-
+    /**
+    * @description 删除对象
+    * @param bucket
+     * @param objectName
+    * @return boolean
+    * @author: woldier
+    * @date: 2023/3/12 16:40
+    */
+    private boolean deleteObjInMinio(String bucket, String objectName){
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(objectName)
+                            .build()
+            );
+        }
+        catch (Exception e){
+            log.debug("删除失败,bucket{},objectName{},err{}",bucket,objectName,e.getMessage());
+            return false;
+        }
+        return true;
+    }
     /**
      * minio合并文件
      *

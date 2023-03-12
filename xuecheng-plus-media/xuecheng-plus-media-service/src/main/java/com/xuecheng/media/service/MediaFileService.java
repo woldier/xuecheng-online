@@ -11,6 +11,7 @@ import com.xuecheng.media.model.dto.UploadFileResultDto;
 import com.xuecheng.media.model.po.MediaFiles;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -100,5 +101,5 @@ public interface MediaFileService extends IService<MediaFiles> {
     * @author: woldier
     * @date: 2023/3/12 13:01
     */
-    RestResponse mergeChunk(String md5, Integer chunkTotal,Long companyId, String fileName);
+    RestResponse mergeChunk(String md5, Integer chunkTotal,Long companyId, String fileName) throws IOException;
 }
