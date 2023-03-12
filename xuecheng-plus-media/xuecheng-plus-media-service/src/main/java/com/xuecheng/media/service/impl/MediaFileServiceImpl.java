@@ -21,6 +21,7 @@ import io.minio.errors.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang3.Streams;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -44,6 +45,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Mr.M
@@ -231,6 +234,15 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
         }
         return Boolean.FALSE;
     }
+    private Boolean checkFileInMinio(GetObjectArgs getObjectArgs) {
+        try (InputStream inputStream = minioClient.getObject(getObjectArgs)) { //通过这种方法创建额流会在try catch后自动释放
+            //若input流对象不为空,说明minio中有数据,那么返回存在
+            if (inputStream != null) return Boolean.TRUE;
+        } catch (Exception e) {
+            log.debug("在minio中获取对象出错bucket:{},objectName{},errInfo{}", getObjectArgs.bucket(), getObjectArgs.object(), e.getMessage());
+        }
+        return Boolean.FALSE;
+    }
 
     /**
      * @param md5 md5值
@@ -246,6 +258,10 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
 
     }
 
+    private String getFolderByMd5(String md5){
+        return md5.charAt(0) + "/" + md5.charAt(1) + "/";
+    }
+
 
     /**
      * @param md5   文件md值
@@ -256,6 +272,7 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
      * 因此只能通过访问minio来进行查询,
      * 我们可以通过minio的getobject方法,有则说明可以
      * @author: woldier
+     *
      * @date: 2023/3/11 22:34
      */
     @Override
@@ -304,6 +321,72 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
         if (minIOUpload(localFilePath, mimeType, videoBucket, objectName))
             return RestResponse.success(Boolean.TRUE);
         return RestResponse.success(Boolean.FALSE);
+    }
+
+
+    /**
+     * @description 分块合并
+     * @param md5 md5id
+     * @param chunkTotal   分块总数
+     * @return com.xuecheng.base.model.RestResponse
+     * @author: woldier
+     * @date: 2023/3/12 13:01
+     */
+    @Override
+    public RestResponse mergeChunk(String md5, Integer chunkTotal,Long companyId, String fileName) {
+        /*
+        *1.生成分片数组
+        * 2.查询分片是否存在
+        * 3.合并分片
+        * 4.写入数据库
+        * */
+        String chunkFolder = getChunkFolderByMd5(md5);
+        //生成用于查询是否存在的参数集合
+        List<ComposeSource> composeSourceList = Stream.iterate(0, t -> t + 1).limit(chunkTotal).map(
+                e -> ComposeSource.builder().bucket(videoBucket).object(chunkFolder + e).build()).collect(Collectors.toList());
+        //检查分片是否存在
+        for (ComposeSource elem : composeSourceList) {
+            if(checkFileInMinio(videoBucket,elem.object()).equals(Boolean.FALSE)) return RestResponse.success(Boolean.FALSE)
+        }
+        //合并分片
+        //拿到文件存储路径
+        String folder = getFolderByMd5(md5);
+        String objectName = folder + md5;
+        //minio合并,若失败则返回
+        if(composeObjectInMinio(videoBucket,objectName,composeSourceList)) RestResponse.success(false);
+        //操作数据库
+        MediaFileService currentProxy = (MediaFileService) AopContext.currentProxy();
+        UploadFileParamsDto uploadFileParamsDto = new UploadFileParamsDto();
+        //设置文件名
+        uploadFileParamsDto.setFilename(fileName);
+        //设置文件大小
+        uploadFileParamsDto.setFileType();
+        uploadFileParamsDto.setFileSize();
+        uploadFileParamsDto.setContentType();
+        uploadFileParamsDto.setTags();
+        uploadFileParamsDto.setUsername();
+        currentProxy.insertMediaFile2DB(companyId,,md5,videoBucket,objectName);
+        return null;
+    }
+
+    /**
+     * minio合并文件
+     * @param bucket 桶
+     * @param objectName 对象名
+     * @param composeSourceList 分片信息list
+     * @return
+     */
+    private boolean composeObjectInMinio(String bucket,String objectName,List<ComposeSource> composeSourceList ){
+        /*minio文件合并*/
+        ComposeObjectArgs composeObjectArgs = ComposeObjectArgs.builder().bucket(bucket).object(objectName).sources(composeSourceList).build();
+        try {
+            minioClient.composeObject(composeObjectArgs);
+        } catch (Exception e) {
+            e.printStackTrace();
+            log.debug("合并数据分片出现错误,bucket{},objectName{},errMsg{}",bucket,objectName,e.getMessage());
+            return false;
+        }
+        return true;
     }
 
     @NotNull

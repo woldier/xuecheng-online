@@ -100,5 +100,5 @@ public interface MediaFileService extends IService<MediaFiles> {
     * @author: woldier
     * @date: 2023/3/12 13:01
     */
-    RestResponse mergeChunk(String md5, Integer chunkTotal);
+    RestResponse mergeChunk(String md5, Integer chunkTotal,Long companyId, String fileName);
 }
