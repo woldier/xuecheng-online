@@ -1,10 +1,14 @@
 package com.xuecheng.media.api;
 
+import com.xuecheng.base.exception.CommonError;
+import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.base.model.RestResponse;
 import com.xuecheng.media.service.MediaFileService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,6 +17,8 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import java.io.File;
+import java.io.IOException;
 
 /**
  * @author woldier
@@ -23,6 +29,7 @@ import javax.validation.constraints.Size;
 @Api(value = "大文件上传",tags = "大文件上传接口")
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class BigFileController {
 
     private final MediaFileService mediaFileService;
@@ -56,7 +63,7 @@ public class BigFileController {
             @RequestParam(value = "fileMd5") String  fileMd5,
             @RequestParam(value = "chunk") Integer chunk
             ){
-        return null;
+        return mediaFileService.checkChunk(fileMd5, chunk);
     }
 
 
@@ -75,8 +82,20 @@ public class BigFileController {
             @RequestParam("file") MultipartFile file,
             @RequestParam("fileMd5")  String fileMd5,
             @RequestParam("chunk")  Integer chunk
-            ){
-        return null;
+            ) throws IOException {
+        /*
+        * 1.暂存file到本地
+        * 2. 调用service服务
+        * */
+        //创建临时文件
+        File tempFile =  File.createTempFile("minio", "temp");
+        file.transferTo(tempFile);
+        String localFilePath = tempFile.getAbsolutePath();
+
+        RestResponse restResponse = mediaFileService.uploadChuck(fileMd5, chunk, localFilePath);
+        //删除临时文件
+        if(!tempFile.delete()) log.debug("删除临时文件失败,filePath{}",localFilePath);
+        return restResponse;
     }
 
     /**
