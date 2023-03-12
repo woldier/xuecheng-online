@@ -10,8 +10,12 @@ Content-Type: application/octet-stream
 
 
 ### 检查文件是否存在(通过md5)
-POST {{gateway_host}}/media//upload/checkfile?fileMd5=0dbc6409995eaa9589676c585459e02b
+POST {{gateway_host}}/media/upload/checkfile?fileMd5=0dbc6409995eaa9589676c585459e02b
 
 
+### 检查文件是否存在(通过md5)
+POST {{gateway_host}}/media/upload/checkchunk?fileMd5=0dbc6409995eaa9589676c585459e02b&chunk=23
 
+### 上传分块
+POST {{gateway_host}}/media/upload/uploadchunk?fileMd5=0dbc6409995eaa9589676c585459e02b&chunk=23
 
