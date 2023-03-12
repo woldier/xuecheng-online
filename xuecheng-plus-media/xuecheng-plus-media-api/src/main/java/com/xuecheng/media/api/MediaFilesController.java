@@ -88,12 +88,16 @@ public class MediaFilesController {
         * 公司id获取
         * */
         //TODO 硬编码公司id
-        Long companyId = 123456789L;
+        Long companyId = getCompanyId();
 
         UploadFileResultDto uploadFileResultDto = mediaFileService.uploadFile(companyId, uploadFileParamsDto, absolutePath);
 
         /*删除临时文件*/
         tempFile.deleteOnExit();
         return uploadFileResultDto;
+    }
+
+    private long getCompanyId(){
+        return 1232141425L;
     }
 }
