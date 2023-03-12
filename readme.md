@@ -7363,11 +7363,13 @@ http://192.168.101.68:9000/home/mediafiles/data/export2
 
 ![image-20230309173224820](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309173224820.png)
 
-##### 4.3.2.5 Docker集群环境
+##### 4.3.2.4 Docker集群环境
 
 
 
-##### 4.3.2.6 创建业务桶
+
+
+##### 4.3.2.5 SDK
 
 本项目创建两个buckets：(设置privacy 为public)
 
@@ -7376,6 +7378,2335 @@ mediafiles： 普通文件
 video：视频文件
 
 ![image-20230309173729297](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309173729297.png)
+
+MinIO提供多个语言版本SDK的支持，下边找到java版本的文档：
+
+地址：https://docs.min.io/docs/java-client-quickstart-guide.html
+
+最低需求Java 1.8或更高版本:
+
+maven依赖如下：
+
+```xml
+<dependency>
+    <groupId>io.minio</groupId>
+    <artifactId>minio</artifactId>
+    <version>8.4.3</version>
+</dependency>
+<dependency>
+    <groupId>com.squareup.okhttp3</groupId>
+    <artifactId>okhttp</artifactId>
+    <version>4.8.1</version>
+</dependency>
+
+```
+
+在`media-service`工程添加此依赖。
+
+示例代码如下：
+
+参数说明：
+
+需要三个参数才能连接到minio服务。
+
+| 参数       | 说明                                      |
+| ---------- | ----------------------------------------- |
+| endpoint   | 对象存储的URL                             |
+| Access Key | Access Key就像用户id,可以唯一标识你的账户 |
+| Secret Key | Secret key是你账户的密码                  |
+
+
+
+```java
+import io.minio.BucketExistsArgs;
+import io.minio.MakeBucketArgs;
+import io.minio.MinioClient;
+import io.minio.UploadObjectArgs;
+import io.minio.errors.MinioException;
+import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+public class FileUploader {
+  public static void main(String[] args)throws IOException, NoSuchAlgorithmException, InvalidKeyException {
+    try {
+      // Create a minioClient with the MinIO server playground, its access key and secret key.
+      MinioClient minioClient =
+          MinioClient.builder()
+              .endpoint("https://play.min.io")
+              .credentials("Q3AM3UQ867SPQQA43P2F", "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG")
+              .build();
+      // Make 'asiatrip' bucket if not exist.
+      boolean found =
+          minioClient.bucketExists(BucketExistsArgs.builder().bucket("asiatrip").build());
+      if (!found) {
+        // Make a new bucket called 'asiatrip'.
+        minioClient.makeBucket(MakeBucketArgs.builder().bucket("asiatrip").build());
+      } else {
+        System.out.println("Bucket 'asiatrip' already exists.");
+      }
+      // Upload '/home/user/Photos/asiaphotos.zip' as object name 'asiaphotos-2015.zip' to bucket
+      // 'asiatrip'.
+      minioClient.uploadObject(
+          UploadObjectArgs.builder()
+              .bucket("asiatrip")
+              .object("asiaphotos-2015.zip")
+              .filename("/home/user/Photos/asiaphotos.zip")
+              .build());
+      System.out.println(
+          "'/home/user/Photos/asiaphotos.zip' is successfully uploaded as "
+              + "object 'asiaphotos-2015.zip' to bucket 'asiatrip'.");
+    } catch (MinioException e) {
+      System.out.println("Error occurred: " + e);
+      System.out.println("HTTP trace: " + e.httpTrace());
+    }
+  }
+}
+
+```
+
+参考上面示例在media-service工程中编写代码测试上传文件功能
+
+###### 4.3.2.5.1 上传文件
+
+在media-service test目录下创建SpringBoot启动类
+
+```java
+package com.xuecheng.media;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description media -service Test启动类
+ * @date 2023/3/9 19:05
+ **/
+@SpringBootApplication
+public class MediaServiceApp {
+    public static void main(String[] args) {
+        SpringApplication.run(MediaServiceApp.class,args);
+    }
+}
+
+```
+
+上传的同时我们最好把contentType传入进去,因此要使用到一个工具类`com.j256.simplemagic.ContentInfoUtil`
+
+此工具类需要导入依赖
+
+```xml
+ <dependency>
+            <groupId>com.j256.simplemagic</groupId>
+            <artifactId>simplemagic</artifactId>
+        </dependency>
+```
+
+
+
+```java
+package com.xuecheng.media;
+
+import com.j256.simplemagic.ContentInfo;
+import com.j256.simplemagic.ContentInfoUtil;
+import io.minio.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description MinIO上传测试
+ * @date 2023/3/9 18:51
+ **/
+@SpringBootTest()
+public class MinioTest {
+    static MinioClient minioClient;
+
+    /**
+     * @return void
+     * @description 单元测试前通用操作
+     * @author: woldier
+     * @date: 2023/3/9 19:23
+     */
+    @BeforeAll
+    public static void before() {
+        /*
+         * 创建MinIO客户端
+         * */
+        minioClient = MinioClient.builder()
+                .endpoint("http://localhost:9000")
+                .credentials("minioadmin", "minioadmin")
+                .build();
+        boolean bucketExists = false;
+        /*查看桶是否存在,不存在则创建*/
+        try {
+            bucketExists = minioClient.bucketExists(BucketExistsArgs.builder().bucket("testbucket").build());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        if (!bucketExists) {
+            try {
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket("testbucket").build());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    /**
+     * @return void
+     * @description 上传
+     * @author: woldier
+     * @date: 2023/3/9 19:22
+     */
+    @Test
+    public void upload() {
+        /*通过扩展名获取媒体资源类型*/
+        ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch("123.mp4");
+        String mimeType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        if(contentInfo!=null) mimeType = contentInfo.getMimeType();
+
+        /*上传*/
+        try {
+            minioClient.uploadObject(
+                    UploadObjectArgs.builder()
+                            .bucket("testbucket")  //桶
+                            .object("/test/hello2.zip") // 对象名,在桶下存储的文件
+                            .filename("D:\\BaiduNetdiskDownload\\stc-isp.zip")  //指定本地文件路径
+                            .contentType(mimeType) //设置媒体文件类型
+                            .build()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+}
+
+```
+
+
+
+###### 4.3.2.5.2 删除文件
+
+参考：https://docs.min.io/docs/java-client-api-reference#removeObject
+
+```java
+
+    /**
+    * @description 删除文件
+    *
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/9 19:23
+    */
+    @Test
+    public void delete(){
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket("testbucket")
+                            .object("test/hello.zip")
+                            .build()
+            );
+
+        }
+        catch (Exception e){
+            throw new RuntimeException();
+        }
+    }
+
+```
+
+
+
+###### 4.3.2.5.3 查询文件
+
+通过查询文件查看文件是否存在minio中。
+
+参考：https://docs.min.io/docs/java-client-api-reference#getObject
+
+```java
+package com.xuecheng.media;
+
+import com.j256.simplemagic.ContentInfo;
+import com.j256.simplemagic.ContentInfoUtil;
+import io.minio.*;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.IOUtils;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+
+import java.io.*;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description MinIO上传测试
+ * @date 2023/3/9 18:51
+ **/
+@SpringBootTest()
+public class MinioTest {
+    static MinioClient minioClient;
+
+    /**
+     * @return void
+     * @description 单元测试前通用操作
+     * @author: woldier
+     * @date: 2023/3/9 19:23
+     */
+    @BeforeAll
+    public static void before() {
+        /*
+         * 创建MinIO客户端
+         * */
+        minioClient = MinioClient.builder()
+                .endpoint("http://localhost:9000")
+                .credentials("minioadmin", "minioadmin")
+                .build();
+        boolean bucketExists = false;
+        /*查看桶是否存在,不存在则创建*/
+        try {
+            bucketExists = minioClient.bucketExists(BucketExistsArgs.builder().bucket("testbucket").build());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        if (!bucketExists) {
+            try {
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket("testbucket").build());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+
+    /**
+    * @description 查询/下载文件
+    *
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/9 20:05
+    */
+    @Test
+    public void download(){
+        try {
+            /*获取MinIO传给我们的输入流*/
+            InputStream object = minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket("testbucket")
+                            .object("test/hello2.zip")
+                            .build());
+            /*输出到本地文件系统*/
+            FileOutputStream fileOutputStream = new FileOutputStream(new File("D:\\hello_download.zip"));
+            IOUtils.copy(object,fileOutputStream);
+
+            /*校验文件完整性
+            * 对文件内容进行md5如果inputStream与outputStream一致
+            * 下载文件完整
+            * 此处用到apache的一个工具类
+            * */
+            String inputMd5 = DigestUtils.md5Hex(object);
+            String downLoadMd5 = DigestUtils.md5Hex(new FileInputStream(new File("D:\\hello_download.zip")));
+            String upLoadMd5 = DigestUtils.md5Hex(new FileInputStream(new File("D:\\BaiduNetdiskDownload\\stc-isp.zip")));
+            if(inputMd5.equals(downLoadMd5)){
+                System.out.println("下载成功");
+            }
+            if(downLoadMd5.equals(upLoadMd5)){
+                System.out.println("本地上传的原始文件与下载到本地的文件md5一致");
+            }
+        }catch (Exception e){
+            throw new RuntimeException();
+        }
+    }
+}
+
+```
+
+这里对下载后的文件与MinIO的文件进行Md5比对
+
+为什么要进行md5校验呢?
+
+通过网络传输可能会出现丢包现象,为了防止数据的不完整,因此我们在上传下载后都要进行md5校验,保证文件完整性
+
+但是我们代码中来自MinIO的远程流`object`对象计算的md5值为什么和我们下载完成后的不一致呢,这是因为我们这是一个远程网络流,而这个流本身就是不稳定的.
+
+因此我们将上传时使用的本地文件`D:\\BaiduNetdiskDownload\\stc-isp.zip`读入流中,与我们下载到本地的文件`D:\\hello_download.zip`进行比对,这时候发现md5值相同.
+
+```shell
+2023-03-09 20:39:32,752 DEBUG [com.alibaba.nacos.client.Worker.longPolling.fixed-121.4.122.56_8848-dev][NacosRestTemplate.java:494] - Execute via interceptors :[com.alibaba.nacos.client.config.impl.ConfigHttpClientManager$LimiterHttpClientRequestInterceptor@ec99af0]
+本地上传的原始文件与下载到本地的文件md5一致
+2023-03-09 20:39:33,040 WARN [Thread-2][HttpClientBeanHolder.java:108] - [HttpClientBeanHolder] Start destroying common HttpClient
+2023-03-09 20:39:33,041 WARN [Thread-2][HttpClientBeanHolder.java:114] - [HttpClientBeanHolder] Destruction of the end
+```
+
+
+
+### 4.4 上传图片
+
+#### 4.4.1 需求分析
+
+##### 4.4.1.1 业务流程
+
+课程图片是宣传课程非常重要的信息，在新增课程界面上传课程图片，也可以修改课程图片。
+
+如下图：
+
+![image-20230309205154959](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309205154959.png)
+
+课程图片上传至分布式文件系统，在课程信息中保存课程图片路径，如下流程：
+
+![image-20230309205459875](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309205459875.png)
+
+1、前端进入上传图片界面
+
+2、上传图片，请求媒资管理服务。
+
+3、媒资管理服务将图片文件存储在MinIO。
+
+4、媒资管理记录文件信息到数据库。
+
+5、保存课程信息，在内容管理数据库保存图片地址。
+
+![image-20230309205533505](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309205533505.png)
+
+##### 4.4.1.2 数据模型
+
+涉及到的数据表有：课程信息表中的图片字段、媒资数据库的文件表，下边
+
+主要看媒资数据库的文件表。
+
+![image-20230309210134727](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309210134727.png)
+
+字段描述如下
+
+![image-20230309210213449](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309210213449.png)
+
+#### 4.4.2 环境准备
+
+首先在minio配置bucket，bucket名称为：mediafiles，并设置bucket的权限为公开。
+
+在nacos配置中minio的相关信息，进入media-service-dev.yaml:
+
+![image-20230309212926866](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230309212926866.png)
+
+```yaml
+minio:
+  endpoint: http://localhost:9000
+  accessKey: minioadmin
+  secretKey: minioadmin
+  bucket:
+    files: mediafiles
+    videofiles: video
+
+```
+
+在media-service工程编写minio的配置类：
+
+MinIO配置属性类
+
+```java
+package com.xuecheng.media.config;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description TODO
+ * @date 2023/3/9 21:31
+ **/
+@Configuration
+@ConfigurationProperties(prefix = "minio")
+public class MinIOProperties {
+}
+
+```
+
+Minio配置类
+
+```java
+package com.xuecheng.media.config;
+
+import io.minio.MinioClient;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description TODO
+ * @date 2023/3/9 21:33
+ **/
+@Configuration
+@EnableConfigurationProperties({MinIOProperties.class})
+@RequiredArgsConstructor
+public class MinIOConfig {
+    private final MinIOProperties minIOProperties;
+
+    /**
+    * @description 初始化MinIO客户端,并且交给spring管理
+    *
+    * @return io.minio.MinioClient
+    * @author: woldier
+    * @date: 2023/3/9 21:36
+    */
+    @Bean
+    public MinioClient minioClient(){
+        return MinioClient.builder()
+                .endpoint("http://localhost:9000")
+                .credentials("minioadmin", "minioadmin")
+                .build();
+    }
+}
+
+```
+
+
+
+#### 4.4.3 接口定义
+
+根据需求分析，下边进行接口定义，此接口定义为一个通用的上传文件接口，可以上传图片或其它文件。
+
+首先分析接口：
+
+请求地址：/media/upload/coursefile
+
+请求参数：
+
+**Content-Type:** multipart/form-data;boundary=.....
+
+FormData:  **filedata=??** 
+
+响应参数：文件信息，如下
+
+```json
+{
+  "id": "a16da7a132559daf9e1193166b3e7f52",
+  "companyId": 1232141425,
+  "companyName": null,
+    "filename": "1.jpg",
+  "fileType": "001001",
+  "tags": "",
+  "bucket": "/testbucket/2022/09/12/a16da7a132559daf9e1193166b3e7f52.jpg",
+  "fileId": "a16da7a132559daf9e1193166b3e7f52",
+  "url": "/testbucket/2022/09/12/a16da7a132559daf9e1193166b3e7f52.jpg",
+  "timelength": null,
+  "username": null,
+  "createDate": "2022-09-12T21:57:18",
+  "changeDate": null,
+  "status": "1",
+  "remark": "",
+  "auditStatus": null,
+  "auditMind": null,
+  "fileSize": 248329
+
+}
+```
+
+在media-model定义上传响应模型类：
+
+```java
+package com.xuecheng.media.model.dto;
+
+import com.xuecheng.media.model.po.MediaFiles;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 上传文件响应结果类
+ * @date 2023/3/9 21:55
+ **/
+public class UploadFileResultDto extends MediaFiles {
+}
+
+```
+
+定义接口如下
+
+```java
+/**
+     * @param upload     表单数据
+     * @param folder     文件夹名-非必须
+     * @param objectName 文件名-非必须
+     * @return com.xuecheng.media.model.dto.UploadFileResultDto
+     * @description 文件上传
+     * @author: woldier
+     * @date: 2023/3/9 22:09
+     */
+    @ApiOperation("文件上传")
+    @RequestMapping(value = "/upload/coursefile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    // 定义请求url与可消费的文件操作content-type类型
+    public UploadFileResultDto upload(
+            @RequestPart("filedata") MultipartFile upload,
+            @RequestParam(value = "folder", required = false) String folder,
+            @RequestParam(value = "objectName", required = false) String objectName) {
+        return null;
+    }
+```
+
+controller层中我们需要将文件暂存在本地,让后将临时文件的地址放进服务层方法参数中
+
+#### 4.4.3 接口开发
+
+##### 4.4.3.1 DAO开发
+
+根据需求分析DAO层实现向media_files表插入一条记录，使用media_files表生成的mapper即可。
+
+##### 4.4.3.2 Service开发
+
+为了使代码更具有可读性，我们创建了两个枚举工具类，用于区分数据库字段值
+
+![image-20230310165611318](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230310165611318.png)
+
+可以看到我们操作mediaFile表时需要用到这两种字段，因此我们使用枚举简化
+
+在meida-model的dto包下创建如下两个枚举类
+
+```java
+package com.xuecheng.media.model.dto;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 媒体资源类型枚举
+ * [{"code":"001001","desc":"图片"},{"code":"001002","desc":"视频"},{"code":"001003","desc":"其它"}]
+ * @date 2023/3/10 15:45
+ **/
+public enum MediaResourceType {
+    IMAGE("001001","图片"),
+    VIDEO("001002","视频"),
+    OTHER("001003","其它")
+    ;
+
+    private String code;
+    private String description;
+
+    MediaResourceType(String code, String description) {
+        this.code = code;
+        this.description = description;
+    }
+
+    public String getCode() {
+        return code;
+    }
+}
+
+```
+
+
+
+```java
+package com.xuecheng.media.model.dto;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 审核状态
+ * [{"code":"002001","desc":"审核未通过"},
+ * {"code":"002002","desc":"未审核"},
+ * {"code":"002003","desc":"审核通过"}]
+ * @date 2023/3/10 14:55
+ **/
+public enum MediaAuditStatus {
+
+    NOT_Approved("002001","审核未通过"),
+
+    Not_Audited("002002","未审核"),
+    Approved("002003","审核通过");
+
+    private String code;
+    private String description;
+
+     MediaAuditStatus(String code, String description){
+        this.code = code;
+        this.description = description;
+
+    }
+
+    public String getCode() {
+        return code;
+    }
+}
+
+```
+
+除此之外由于我们操作的数据表有公共字段，updateTime，createTime。因此我们可以加入一个mp的自动填充功能。
+
+在media-service的config包下创建如下类
+
+```java
+package com.xuecheng.media.config;
+
+import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * <P>
+ * 		Mybatis-Plus 配置
+ * </p>
+ */
+@Configuration
+@MapperScan("com.xuecheng.media.mapper")
+public class MybatisPlusConfig {
+	/**
+	 * 新的分页插件
+	 * 需要设置 MybatisConfiguration#useDeprecatedExecutor = false
+	 * 避免缓存出现问题(该属性会在旧插件移除后一同移除)
+	 */
+	@Bean
+	public MybatisPlusInterceptor mybatisPlusInterceptor() {
+		MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+		interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+		return interceptor;
+	}
+
+
+}
+```
+
+
+
+
+
+Service方法需要提供一个更加通用的保存文件的方法。
+
+定义请求参数类：
+
+```java
+package com.xuecheng.media.model.dto;
+
+import lombok.Data;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 文件上传通用参数dto,这里的大部分都来自与 MediaFiles
+ * @date 2023/3/9 22:14
+ **/
+@Data
+public class UploadFileParamsDto {
+    /**
+     * 文件名称
+     */
+    private String filename;
+
+    /**
+     * 文件content-type
+     */
+    private String contentType;
+
+    /**
+     * 文件类型（文档，音频，视频）
+     */
+    private String fileType;
+    /**
+     * 文件大小
+     */
+    private Long fileSize;
+
+    /**
+     * 标签
+     */
+    private String tags;
+
+    /**
+     * 上传人
+     */
+    private String username;
+
+    /**
+     * 备注
+     */
+    private String remark;
+
+}
+
+```
+
+定义service方法：
+
+`com.xuecheng.media.service.MediaFileService`
+
+```java
+/**
+     * @param companyId           公司ID
+     * @param uploadFileParamsDto 上传文件参数类
+     * @param LocalFilePath       要上传的文件其本地路径
+     * @return com.xuecheng.media.model.dto.UploadFileResultDto
+     * @description 上传文件
+     * @author: woldier
+     * @date: 2023/3/10 13:36
+     */
+    UploadFileResultDto uploadFile(Long companyId, UploadFileParamsDto uploadFileParamsDto, String LocalFilePath) throws XueChengPlusException;
+    
+    /**
+    * @description 将上传的文件插入数据库 
+    * @param companyId 
+     * @param uploadFileParamsDto 
+     * @param md5 
+     * @param bucket 
+     * @param objectName  
+    * @return com.xuecheng.media.model.po.MediaFiles 
+    * @author: woldier 
+    * @date: 2023/3/10 16:42
+    */
+     MediaFiles insertMediaFile2DB(Long companyId, UploadFileParamsDto uploadFileParamsDto, String md5, String bucket,String objectName);
+```
+
+`com.xuecheng.media.service.impl.MediaFileServiceImpl`
+
+```java
+/**
+     * @param companyId           公司ID
+     * @param uploadFileParamsDto 上传文件参数类
+     * @param localFilePath       要上传的文件其本地路径
+     * @return com.xuecheng.media.model.dto.UploadFileResultDto
+     * @description 上传文件
+     * @author: woldier
+     * @date: 2023/3/10 13:36
+     */
+    @Override
+    public UploadFileResultDto uploadFile(Long companyId, UploadFileParamsDto uploadFileParamsDto, String localFilePath) throws XueChengPlusException {
+        /*
+         * 1.上传文件到minio ，文件路径为 /{桶名}/{年}/{月}/{日}/
+         * 2.插入数据库
+         * */
+        /*通过扩展名获取媒体资源类型*/
+        String mimeType = getMimeType(uploadFileParamsDto.getFilename());
+        /*组装文件基路径*/
+        String basePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd/"));
+        /*由于Minio中同一天的数据保存位置都在同一个文件夹下,为了防止重名现象,不能用原文件名,应该用md5值加后缀*/
+        int index = uploadFileParamsDto.getFilename().lastIndexOf(".");
+        //文件后缀
+        String fileSuffix = uploadFileParamsDto.getFilename().substring(index);
+        //文件md5值
+        String md5 = getMd5(localFilePath);
+        //拼接得到Minio存储路径
+        String objectName = basePath + md5 + fileSuffix;
+        //上传到minio
+        boolean minIOUpload = minIOUpload(localFilePath, mimeType, fileBucket, objectName);
+        if (!minIOUpload) XueChengPlusException.cast("MinIO上传出错");
+        //上传到数据库
+        MediaFiles files = insertMediaFile2DB(companyId, uploadFileParamsDto, md5, fileBucket, objectName);
+//        MediaFileService proxy = (MediaFileService)AopContext.currentProxy();
+//        MediaFiles files = proxy.insertMediaFile2DB(companyId, uploadFileParamsDto, md5, fileBucket,objectName);
+        //结果为空表示上传失败
+        if (files == null) XueChengPlusException.cast("文件上传后保存信息到数据库失败");
+        UploadFileResultDto uploadFileResultDto = new UploadFileResultDto();
+        BeanUtils.copyProperties(files, uploadFileResultDto);
+
+        return uploadFileResultDto;
+    }
+
+    /**
+     * @param companyId           公司id
+     * @param uploadFileParamsDto 上传参数信息
+     * @param md5                 md5
+     * @param bucket              桶
+     * @param objectName          对象名
+     * @return com.xuecheng.media.model.po.MediaFiles
+     * @description 插入数据库
+     * @author: woldier
+     * @date: 2023/3/10 15:21
+     */
+    @Transactional
+    public MediaFiles insertMediaFile2DB(Long companyId, UploadFileParamsDto uploadFileParamsDto, String md5, String bucket, String objectName) {
+        /*添加数据库之前,根据md5查询该文件是否已经存在*/
+        MediaFiles files = mediaFilesMapper.selectById(md5);
+        if (files == null) {
+            /*生成数据库entity*/
+            MediaFiles mediaFiles = new MediaFiles();
+            BeanUtils.copyProperties(uploadFileParamsDto, mediaFiles);
+            //设置uploadFileParamsDto中不存在的部分
+            //设置id
+            mediaFiles.setId(md5);
+            //机构id
+            mediaFiles.setCompanyId(companyId);
+            //bucket
+            mediaFiles.setBucket(bucket);
+            //存储路径
+            mediaFiles.setFilePath(objectName);
+            //file_id
+            mediaFiles.setFileId(md5);
+            //url
+            mediaFiles.setUrl("/" + bucket + "/" + objectName);
+            //上传时间,更新时间自动设置
+            //文件状态
+            mediaFiles.setStatus("1");
+            //审核状态
+            mediaFiles.setAuditStatus(MediaAuditStatus.Approved.getCode());
+
+            int insert = mediaFilesMapper.insert(mediaFiles);
+
+            if (insert <= 0) {
+                log.debug("向数据库保存文件失败,bucket:{},objectName{}", fileBucket, objectName);
+                return null;
+            }
+            return mediaFiles;
+        }
+        return files;
+    }
+
+    @NotNull
+    private static String getMd5(String localFilePath) throws XueChengPlusException {
+        String md5 = null;
+        try {
+            md5 = DigestUtils.md5Hex(Files.newInputStream(new File(localFilePath).toPath()));
+        } catch (IOException e) {
+            XueChengPlusException.cast("md5计算时出错");
+        }
+        return md5;
+    }
+
+    /**
+     * @param fileName 带后缀文件名
+     * @return java.lang.String
+     * @description 根据文件后缀名获取MimeType
+     * @author: woldier
+     * @date: 2023/3/10 13:55
+     */
+    private String getMimeType(String fileName) {
+        if (fileName == null) fileName = "";
+        ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(fileName);
+        String mimeType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        if (contentInfo != null) mimeType = contentInfo.getMimeType();
+        return mimeType;
+    }
+
+    /**
+     * @param localFilePath 本地文件路径
+     * @param fileType      文件类型
+     * @param bucket        桶名称
+     * @return boolean
+     * @description 上传文件到MinIO的方法
+     * @author: woldier
+     * @date: 2023/3/10 13:33
+     */
+    private boolean minIOUpload(String localFilePath, String fileType, String bucket, String objectName) {
+
+        /*上传*/
+        try {
+            minioClient.uploadObject(
+                    UploadObjectArgs.builder()
+                            .bucket(bucket)  //桶
+                            .object(objectName) // 对象名,在桶下存储的文件
+                            .filename(localFilePath)  //指定本地文件路径
+                            .contentType(fileType) //设置媒体文件类型
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("文件上传到MinIO出错,buckcet:{},path:{},error:{}", bucket, objectName, e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+
+    }
+```
+
+
+
+##### 4.4.3.3 接口代码完善
+
+```java
+ /**
+     * @param upload     表单数据
+     * @param folder     文件夹名-非必须
+     * @param objectName 文件名-非必须
+     * @return com.xuecheng.media.model.dto.UploadFileResultDto
+     * @description 文件上传
+     * @author: woldier
+     * @date: 2023/3/9 22:09
+     */
+    @ApiOperation("文件上传")
+    @RequestMapping(value = "/upload/coursefile", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    // 定义请求url与可消费的文件操作content-type类型
+    public UploadFileResultDto upload(
+            @RequestPart("filedata") MultipartFile upload,
+            @RequestParam(value = "folder", required = false) String folder,
+            @RequestParam(value = "objectName", required = false) String objectName) throws IOException, XueChengPlusException {
+        /*
+        *对接受到的文件进行处理
+         */
+        /*产生一个临时文件*/
+        File tempFile = File.createTempFile("minio", "temp");
+        /*将请求中的表单数据拷贝到临时文件中*/
+        upload.transferTo(tempFile);
+        /*获取绝对路径*/
+        String absolutePath = tempFile.getAbsolutePath();
+
+        /*
+        *对上传参数进行处理
+         */
+
+        //上传文件参数类
+        UploadFileParamsDto uploadFileParamsDto = new UploadFileParamsDto();
+        //原始文件名称
+        uploadFileParamsDto.setFilename(upload.getOriginalFilename());
+        //文件大小
+        uploadFileParamsDto.setFileSize(upload.getSize());
+        //文件类型
+        uploadFileParamsDto.setFileType(MediaResourceType.IMAGE.getCode());
+        
+
+        /*
+        * 公司id获取
+        * */
+        //TODO 硬编码公司id
+        Long companyId = 123456789L;
+
+        UploadFileResultDto uploadFileResultDto = mediaFileService.uploadFile(companyId, uploadFileParamsDto, absolutePath);
+
+        /*删除临时文件*/
+        tempFile.deleteOnExit();
+        return uploadFileResultDto;
+```
+
+#### 4.4.4 service事务代码优化
+
+上边的service方法优化后并测试通过，现在思考关于uploadFile方法的是否应该开启事务。
+
+目前是在uploadFile方法上添加@Transactional，当调用uploadFile方法前会开启数据库事务，如果上传文件过程时间较长那么数据库的事务持续时间就会变长，这样数据库链接释放就慢，最终导致数据库链接不够用。
+
+我们只将addMediaFilesToDb方法添加事务控制即可,uploadFile方法上的@Transactional注解去掉。(上小节代码已经时这样做的)
+
+但是现在的问题是,controller调用的service方法upload没用加入事务注解,相当于在service中一个没有事务的方法调用了另一个事务方法,事务不生效
+
+下边分析原因：
+
+如果在uploadFile方法上添加@Transactional注解，代理对象执行此方法前会开启事务，如下图：
+
+![image-20230310170730673](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230310170730673.png)
+
+
+
+如果在uploadFile方法上没有@Transactional注解，代理对象执行此方法前
+
+不进行事务控制，如下图：
+
+![image-20230310170810020](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230310170810020.png)
+
+现在在addMediaFilesToDb方法上添加@Transactional注解，也不会进行事务是因为并不是通过代理对象执行的addMediaFilesToDb方法。为了判断在uploadFile方法中去调用addMediaFilesToDb方法是否是通过代理对象去调用，我们可以打断点跟踪。
+
+![image-20230310170826985](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230310170826985.png)
+
+我们发现在uploadFile方法中去调用addMediaFilesToDb方法不是通过代理对象去调用。
+
+ 
+
+如何解决呢？通过代理对象去调用addMediaFilesToDb方法即可解决。
+
+我们先获取代理对象,然后调用代理对象的insertMediaFile2DB方法
+
+```java
+MediaFileService proxy = (MediaFileService)AopContext.currentProxy();
+MediaFiles files = proxy.insertMediaFile2DB(companyId, uploadFileParamsDto, md5, fileBucket,objectName);
+```
+
+但是只修改这个代码启动会报错
+
+```shell
+Cannot find current proxy: Set 'exposeProxy' property on Advised to 'true' to make it available, and ensure that AopContext.currentProxy() is invoked in the same thread as the AOP invocation context.
+```
+
+我们需要在启动类下加入注解并且设置exposeProxy属性,除此之外可能的报错原因是没有加入包
+
+```java
+@EnableAspectJAutoProxy(exposeProxy = true)
+```
+
+```xml
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+        </dependency>
+```
+
+我们可以在代码中插入数据库后除0模拟错误,看一下是否进行了数据库回归,经过测试可以发现进行了回滚
+
+![image-20230310172853142](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230310172853142.png)
+
+#### 4.4.5 接口测试
+
+```http
+### 上传文件
+POST {{gateway_host}}/media//upload/coursefile
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data;name="filedata"; filename="1.jpg"
+Content-Type: application/octet-stream
+
+< d:/java_lesson/upload/1.jpg
+```
+
+```shell
+POST http://localhost:63010/media//upload/coursefile
+
+HTTP/1.1 200 OK
+transfer-encoding: chunked
+Content-Type: application/json
+Date: Fri, 10 Mar 2023 08:33:46 GMT
+
+{
+  "id": "8a58662af30ace3e83f629a10ddd8662",
+  "companyId": 123456789,
+  "companyName": null,
+  "filename": "1.jpg",
+  "fileType": "001001",
+  "tags": null,
+  "bucket": "mediafiles",
+  "filePath": "2023/03/10/8a58662af30ace3e83f629a10ddd8662.jpg",
+  "fileId": "8a58662af30ace3e83f629a10ddd8662",
+  "url": "/mediafiles/2023/03/10/8a58662af30ace3e83f629a10ddd8662.jpg",
+  "username": null,
+  "createDate": null,
+  "changeDate": null,
+  "status": "1",
+  "remark": null,
+  "auditStatus": "002003",
+  "auditMind": null,
+  "fileSize": 9778
+}
+```
+
+![image-20230310170259443](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230310170259443.png)
+
+
+
+### 4.5 上传视频
+
+#### 4.5.1 需求分析
+
+##### 4.5.1.1 业务流程
+
+1、教学机构人员进入媒资管理列表查询自己上传的媒资文件。
+
+点击“媒资管理”
+
+![image-20230311105746421](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230311105746421.png)
+
+进入媒资管理列表页面查询本机构上传的媒资文件。
+
+2、教育机构用户在"媒资管理"页面中点击 "上传视频" 按钮。
+
+![image-20230311105919362](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230311105919362.png)
+
+点击“上传视频”打开上传页面
+
+![image-20230311105934687](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230311105934687.png)
+
+
+
+3、选择要上传的文件，自动执行文件上传。
+
+![image-20230311105946833](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230311105946833.png)
+
+4、视频上传成功会自动处理，处理完成可以预览视频。
+
+![image-20230311110013147](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230311110013147.png)
+
+点击“上传视频”打开上传页面
+
+![image-20230311110027353](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230311110027353.png)
+
+
+
+3、选择要上传的文件，自动执行文件上传。
+
+![image-20230311110051493](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230311110051493.png)
+
+
+
+4、视频上传成功会自动处理，处理完成可以预览视频。
+
+![image-20230311110100554](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230311110100554.png)
+
+
+
+#### 4.5.2 理解断点续传
+
+##### 4.5.2.1 什么是断点续传
+
+通常视频文件都比较大，所以对于媒资系统上传文件的需求要满足大文件的上传要求。http协议本身对上传文件大小没有限制，但是客户的网络环境质量、电脑硬件环境等参差不齐，如果一个大文件快上传完了网断了没有上传完成，需要客户重新上传，用户体验非常差，所以对于大文件上传的要求最基本的是断点续传。
+
+什么是断点续传：
+
+​    引用百度百科：断点续传指的是在下载或上传时，将下载或上传任务（一个文件或一个压缩包）人为的划分为几个部分，每一个部分采用一个线程进行上传或下载，如果碰到网络故障，可以从已经上传或下载的部分开始
+
+继续上传下载未完成的部分，而没有必要从头开始上传下载，断点续传可以提高节省操作时间，提高用户体验性。
+
+断点续传流程如下图：
+
+![image-20230311110315589](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230311110315589.png)
+
+
+
+流程如下：
+
+1、前端上传前先把文件分成块
+
+2、一块一块的上传，上传中断后重新上传，已上传的分块则不用再上传
+
+3、各分块上传完成最后在服务端合并文件
+
+
+
+##### 4.5.2.2 分块与合并测试
+
+为了更好的理解文件分块上传的原理，下边用java代码测试文件的分块与合并。
+
+文件分块的流程如下：
+
+1、获取源文件长度
+
+2、根据设定的分块文件的大小计算出块数
+
+3、从源文件读数据依次向每一个块文件写数据。
+
+测试代码如下：
+
+```java
+
+    @Autowired
+    MinioClient minioClient;
+    /**
+     * @return void
+     * @description 本地文件分片
+     * @author: woldier
+     * @date: 2023/3/11 8:50
+     */
+    @Test
+    public void shading() throws IOException {
+        /*
+         * 1.指定本地文件路径，分片大小，分片后文件存储位置
+         * 2.根据文件大小与分片大小得到分片数目，创建对应文件
+         * 3.分片写入
+         * */
+        //本地源文件
+        File source = new File("D:\\java_lesson\\sharding\\visualcrustdemo.rar");
+        FileInputStream inputStream = new FileInputStream(source);
+        //分片保存的文件夹
+        File chunkDir = new File("D:\\java_lesson\\sharding\\chunk");
+        //分片大小
+        Long chunkSize = 1024 * 1024 * 5L;
+        //分片数目
+        int shardingNum = (int) Math.ceil((source.length() * 1.0 / chunkSize));
+        //缓冲区
+        byte[] b = new byte[1024];
+        for (int i = 0; i < shardingNum; i++) {
+            //创建分片文件
+            File shadedFile = new File(chunkDir, String.valueOf(i));
+            //创建分片文件输出流
+            FileOutputStream shaded = new FileOutputStream(shadedFile);
+            int len = -1;
+            while ((len = inputStream.read(b)) != -1) {
+                shaded.write(b, 0, len);
+                if (shadedFile.length() >= chunkSize) break;  //当该分片达到分片大小时跳出
+            }
+            shaded.close();
+
+
+        }
+        inputStream.close();
+
+
+    }
+```
+
+
+
+文件合并流程：
+
+1、找到要合并的文件并按文件合并的先后进行排序。
+
+2、创建合并文件
+
+3、依次从合并的文件中读取数据向合并文件写入数
+
+文件合并的测试代码 ：
+
+```java
+/**
+    * @description 分片文件聚合
+    *
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/11 10:36
+    */
+    @Test
+    public void merging() throws IOException {
+        /*
+         * 1.从分片文件夹中获取所有文件
+         * 2.写入
+         * */
+        //分片文件目录
+        File sourceDir = new File("D:\\java_lesson\\sharding\\chunk");
+        //目标文件
+        File target = new File("D:\\java_lesson\\sharding\\visualcrustdemo_merge.rar");
+        //目标文件输出流
+        FileOutputStream fileOutputStream = new FileOutputStream(target);
+        String[] list = sourceDir.list();
+        assert list != null;
+        /*文件排序*/
+        List<String> fileListSorted = Arrays.asList(list).stream().sorted(Comparator.comparing(Integer::valueOf)).collect(Collectors.toList());
+        byte[] b = new byte[1024];
+        fileListSorted.forEach(
+                e -> {
+                    try {
+                        FileInputStream inputStream = new FileInputStream(new File(sourceDir, e));
+                        int len = -1;
+                        while((len=inputStream.read(b)) != -1){
+                            fileOutputStream.write(b,0,len);
+                        }
+                        inputStream.close();
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+        );
+        fileOutputStream.close();
+    }
+```
+
+##### 4.5.3.4 上传视频流程
+
+下图是上传视频的整体流程：
+
+![image-20230311110849671](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230311110849671.png)
+
+
+
+1、前端上传文件前请求媒资接口层检查文件是否存在，如果已经存在则不再上传。
+
+2、如果文件在系统不存在前端开始上传，首先对视频文件进行分块
+
+3、前端分块进行上传，上传前首先检查分块是否上传，如已上传则不再上传，如果未上传则开始上传分块。
+
+4、前端请求媒资管理接口层请求上传分块。
+
+5、接口层请求服务层上传分块。
+
+6、服务端将分块信息上传到MinIO。
+
+7、前端将分块上传完毕请求接口层合并分块。
+
+8、接口层请求服务层合并分块。
+
+9、服务层根据文件信息找到MinIO中的分块文件，下载到本地临时目录，将所有分块下载完毕后开始合并 。
+
+10、合并完成将合并后的文件上传到MinIO。
+
+minio合并文件
+
+
+
+```java
+/**
+    * @description 本地分片上传到minio并合并
+    *
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/11 10:38
+    */
+    @Test
+    public void MinIOMerge() throws ServerException, InsufficientDataException, ErrorResponseException, IOException, NoSuchAlgorithmException, InvalidKeyException, InvalidResponseException, XmlParserException, InternalException {
+        //分片文件目录
+        File sourceDir = new File("D:\\java_lesson\\sharding\\chunk");
+        String[] list = sourceDir.list();
+        assert list != null;
+        /*文件排序*/
+        Arrays.stream(list).sorted(Comparator.comparing(Integer::valueOf)).forEach(
+                i ->{
+                    /*上传*/
+                    try {
+                        minioClient.uploadObject(
+                                UploadObjectArgs.builder()
+                                        .bucket("testbucket")  //桶
+                                        .object("/test/chunk/"+i) // 对象名,在桶下存储的文件
+                                        .filename("D:\\java_lesson\\sharding\\chunk\\"+i)  //指定本地文件路径
+
+                                        .build()
+                        );
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+        );
+        List<ComposeSource> composeSourceList = Arrays.asList(list).stream().map(e ->
+
+                ComposeSource.builder().bucket("testbucket").object("/test/chunk/" + e).build()
+        ).collect(Collectors.toList());
+        /*minio文件合并*/
+        ComposeObjectArgs composeObjectArgs = ComposeObjectArgs.builder().bucket("testbucket").object("/test/conpose.rar").sources(composeSourceList).build();
+        minioClient.composeObject(composeObjectArgs);
+
+
+    }
+```
+
+
+
+#### 4.5.3 接口定义
+
+接口层需要提供以下几个接口，第一个接口是检查文件是否存在于服务器（通过文件md5来进行标识），第二个是检查某分片是否存在于服务器，第三个是上传分片到服务器，第四个是合并分片。这几个接口都是通过文件的md5值来区分文件的。
+
+```java
+package com.xuecheng.media.api;
+
+import com.xuecheng.base.model.RestResponse;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 大文件上传接口
+ * @date 2023/3/11 11:43
+ **/
+@Api(value = "大文件上传",tags = "大文件上传接口")
+@RestController
+public class BigFileController {
+
+    /**
+    * @description 文件上传前的检查接口
+    * @param fileMd5  文件md5值
+    * @return com.xuecheng.base.model.RestResponse
+    * @author: woldier
+    * @date: 2023/3/11 11:54
+    */
+    @ApiOperation("检查文件是否存在")
+    @PostMapping("/upload/checkfile")
+    public RestResponse checkFile(
+            @RequestParam(value = "fileMd5")  String  fileMd5
+    ){
+        return null;
+
+    }
+
+    /**
+    * @description 检查分片是否存在
+    * @param fileMd5 文件md5值
+     * @param chunk  分片id
+    * @return com.xuecheng.base.model.RestResponse
+    * @author: woldier
+    * @date: 2023/3/11 11:59
+    */
+    @ApiOperation("检查分片是否存在")
+    @PostMapping("/upload/checkchunk")
+    public RestResponse checkChunk(
+            @RequestParam(value = "fileMd5") String  fileMd5,
+            @RequestParam(value = "chunk") Integer chunk
+            ){
+        return null;
+    }
+
+
+    /**
+    * @description 分片上传接口
+    * @param file 文件
+     * @param fileMd5 分片md5
+     * @param chunk  分片id
+    * @return com.xuecheng.base.model.RestResponse
+    * @author: woldier
+    * @date: 2023/3/11 12:04
+    */
+    @ApiOperation("上传分片")
+    @PostMapping("/upload/uploadchunk")
+    public RestResponse uploadChunk(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("fileMd5")  String fileMd5,
+            @RequestParam("chunk")  Integer chunk
+            ){
+        return null;
+    }
+
+    /**
+    * @description 合并分片
+    * @param fileName 文件名
+     * @param fileMd5 文件md5值
+     * @param chunkTotal  分片总数
+    * @return com.xuecheng.base.model.RestResponse
+    * @author: woldier
+    * @date: 2023/3/11 12:18
+    */
+    @ApiOperation("合并分片")
+    @PostMapping("/upload/mergechunk")
+    public RestResponse mergeChunks(
+            @RequestParam("fileMd5")  String fileMd5,
+            @RequestParam("fileName") String fileName,
+            @RequestParam("chunkTotal")  Integer chunkTotal
+    ){
+        return null;
+    }
+}
+
+```
+
+
+
+#### 4.5.4 接口开发
+
+##### 4.5.4.1 DAO开发
+
+向媒资数据库的文件表插入记录,使用自动生成的Mapper接口即可满足要求
+
+##### 4.5.4.2 Service开发
+
+1. 检查文件
+
+`com.xuecheng.media.service.MediaFileService`
+
+```java
+
+    /**
+     * @param md5 文件md值
+     * @return com.xuecheng.base.model.RestResponse
+     * @description 检查文件是否存在
+     * @author: woldier
+     * @date: 2023/3/11 22:31
+     */
+    RestResponse checkFile(String md5);
+```
+
+```java
+ /**
+     * @param md5 文件md值
+     * @return com.xuecheng.base.model.RestResponse
+     * @description 检查文件是否存在
+     * @author: woldier
+     * @date: 2023/3/11 22:31
+     */
+    @Override
+    public RestResponse checkFile(String md5) {
+        /*
+         * 1.查询md5值数据库
+         * 2.若没有数据直接返回false
+         * 3.若有则查询minio,查看是否可以get到对象,对于视频文件我们也要将他分文件夹存储,分为两级目录,第一级是md5的第一个字符,第二级是md5的第二个字符
+         * 如avsdsdsdsds 为某文件的md值,那么该文件在minio中的存储路径是 a/v/avsdsdsdsds.文件后缀
+         * */
+        //从数据库查询
+        MediaFiles mediaFiles = this.getById(md5);
+        if(mediaFiles!=null){//数据库中查询到不为空
+            //获取桶
+            String bucket = mediaFiles.getBucket();
+            //获取存储路径
+            String filePath = mediaFiles.getFilePath();
+            try(InputStream inputStream = minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(filePath).build())){ //通过这种方法创建额流会在try catch后自动释放
+                //若input流对象不为空,说明minio中有数据,那么返回存在
+                if (inputStream != null) return RestResponse.success(Boolean.TRUE);
+            }catch (Exception e){
+                log.debug("在minio中获取对象出错bucket:{},objectName{},errInfo{}",bucket,filePath,e.getMessage());
+            }
+        }
+
+        //查询到数据库为空,或者查询minio报错返回错误
+        return RestResponse.success(Boolean.FALSE);
+    }
+```
+
+
+
+2. 检查文件分块
+
+```java
+/**
+     * @param md5   文件md值
+     * @param chunk 分片id
+     * @return com.xuecheng.base.model.RestResponse
+     * @description 检查文件分片是否存在;
+     * 首先分片数据记录并不会存在于数据库中,
+     * 因此只能通过访问minio来进行查询,
+     * 我们可以通过minio的getobject方法,有则说明可以
+     * @author: woldier
+     * @date: 2023/3/11 22:34
+     */
+    RestResponse checkChunk(String md5, Integer chunk);
+```
+
+```java
+/**
+     * @param md5   文件md值
+     * @param chunk 分片id
+     * @return com.xuecheng.base.model.RestResponse
+     * @description 检查文件分片是否存在;
+     * 首先分片数据记录并不会存在于数据库中,
+     * 因此只能通过访问minio来进行查询,
+     * 我们可以通过minio的getobject方法,有则说明可以
+     * @author: woldier
+     * @date: 2023/3/11 22:34
+     */
+    @Override
+    public RestResponse checkChunk(String md5, Integer chunk) {
+        /*
+        * 由于分片文件信息不会记录在db中,因此我们之后访问minio进行查询
+        * 1.通过md5得到分片文件存放的文件夹
+        * 2.将文件夹路径与分片号chunk合并,得到分片路径
+        * 例如 分片为23 md5为0dbc6409995eaa9589676c585459e02b
+        * 则拼接的对象 路径为 0/d/0dbc6409995eaa9589676c585459e02b/chunk/23
+        * 3.通过Minio查看是否可以成功获取若能说明存在返回成功,否则返回失败
+        * */
+        //获取分片文件夹路径
+        String chunkFolder = getChunkFolderByMd5(md5);
+        //得到分片存储路径
+        String objectName = chunkFolder + chunk;
+        Boolean exist = checkFileInMinio(videoBucket, objectName);
+        if(Boolean.TRUE.equals(exist)) return RestResponse.success(Boolean.TRUE);
+
+        return RestResponse.success(Boolean.FALSE);
+    }
+
+/**
+    * @description 检查minio中是否存在
+    * @param bucket 桶
+     * @param filePath  对象路径
+    * @return Boolean 若存在返回True 不存在返回False
+    * @author: woldier
+    * @date: 2023/3/12 10:35
+    */
+    @Nullable
+    private Boolean checkFileInMinio(String bucket, String filePath) {
+        try(InputStream inputStream = minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(filePath).build())){ //通过这种方法创建额流会在try catch后自动释放
+            //若input流对象不为空,说明minio中有数据,那么返回存在
+            if (inputStream != null) return Boolean.TRUE;
+        }catch (Exception e){
+            log.debug("在minio中获取对象出错bucket:{},objectName{},errInfo{}", bucket, filePath,e.getMessage());
+        }
+        return Boolean.FALSE;
+    }
+```
+
+
+
+
+
+3. 上传分块
+
+
+
+由于前端文件设置的默认分片大小为1，所以我们需要修改前端代码将分片大小改为5
+
+进入前端code  修改/src/utils/uploadtools.ts
+
+![image-20230312115047151](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/image-20230312115047151.png)
+
+由于spring boot web 默认上传大小为1M，所以我们需要在media-api修改配置文件
+
+```yaml
+spring：
+	servlet：
+		multipart：
+			max-file-size: 50MB
+			max-request-size: 50MB
+```
+
+
+
+
+
+4. 合并分块
+
+```java
+package com.xuecheng.media.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.j256.simplemagic.ContentInfo;
+import com.j256.simplemagic.ContentInfoUtil;
+import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.base.model.PageParams;
+import com.xuecheng.base.model.PageResult;
+import com.xuecheng.base.model.RestResponse;
+import com.xuecheng.media.mapper.MediaFilesMapper;
+import com.xuecheng.media.model.dto.*;
+import com.xuecheng.media.model.po.MediaFiles;
+import com.xuecheng.media.service.MediaFileService;
+import io.minio.*;
+import io.minio.errors.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.Streams;
+import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.springframework.aop.framework.AopContext;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.io.*;
+import java.nio.file.Files;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+/**
+ * @author Mr.M
+ * @version 1.0
+ * @description TODO
+ * @date 2022/9/10 8:58
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFiles> implements MediaFileService {
+
+    @Autowired
+    private MediaFilesMapper mediaFilesMapper;
+
+    @Value("${minio.bucket.files}")
+    private String fileBucket;
+    @Value("${minio.bucket.videofiles}")
+    private String videoBucket;
+    /**
+     * minio客户端
+     */
+    private final MinioClient minioClient;
+
+    @Override
+    public PageResult<MediaFiles> queryMediaFiels(Long companyId, PageParams pageParams, QueryMediaParamsDto queryMediaParamsDto) {
+
+        //构建查询条件对象
+        LambdaQueryWrapper<MediaFiles> queryWrapper = new LambdaQueryWrapper<>();
+
+        //分页对象
+        Page<MediaFiles> page = new Page<>(pageParams.getPageNo(), pageParams.getPageSize());
+        // 查询数据内容获得结果
+        Page<MediaFiles> pageResult = mediaFilesMapper.selectPage(page, queryWrapper);
+        // 获取数据列表
+        List<MediaFiles> list = pageResult.getRecords();
+        // 获取数据总数
+        long total = pageResult.getTotal();
+        // 构建结果集
+        PageResult<MediaFiles> mediaListResult = new PageResult<>(list, total, pageParams.getPageNo(), pageParams.getPageSize());
+        return mediaListResult;
+
+    }
+
+
+    /**
+     * @param companyId           公司ID
+     * @param uploadFileParamsDto 上传文件参数类
+     * @param localFilePath       要上传的文件其本地路径
+     * @return com.xuecheng.media.model.dto.UploadFileResultDto
+     * @description 上传文件
+     * @author: woldier
+     * @date: 2023/3/10 13:36
+     */
+    @Override
+    public UploadFileResultDto uploadFile(Long companyId, UploadFileParamsDto uploadFileParamsDto, String localFilePath) throws XueChengPlusException {
+        /*
+         * 1.上传文件到minio ，文件路径为 /{桶名}/{年}/{月}/{日}/
+         * 2.插入数据库
+         * */
+        /*通过扩展名获取媒体资源类型*/
+        String mimeType = getMimeType(uploadFileParamsDto.getFilename());
+        /*组装文件基路径*/
+        String basePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd/"));
+        /*由于Minio中同一天的数据保存位置都在同一个文件夹下,为了防止重名现象,不能用原文件名,应该用md5值加后缀*/
+        int index = uploadFileParamsDto.getFilename().lastIndexOf(".");
+        //文件后缀
+        String fileSuffix = uploadFileParamsDto.getFilename().substring(index);
+        //文件md5值
+        String md5 = getMd5(localFilePath);
+        //拼接得到Minio存储路径
+        String objectName = basePath + md5 + fileSuffix;
+        //上传到minio
+        boolean minIOUpload = minIOUpload(localFilePath, mimeType, fileBucket, objectName);
+        if (!minIOUpload) XueChengPlusException.cast("MinIO上传出错");
+        //上传到数据库
+        //MediaFiles files = insertMediaFile2DB(companyId, uploadFileParamsDto, md5, fileBucket, objectName);
+        //通过代理对象调用
+        MediaFileService proxy = (MediaFileService) AopContext.currentProxy();
+        MediaFiles files = proxy.insertMediaFile2DB(companyId, uploadFileParamsDto, md5, fileBucket, objectName);
+        //结果为空表示上传失败
+        if (files == null) XueChengPlusException.cast("文件上传后保存信息到数据库失败");
+        UploadFileResultDto uploadFileResultDto = new UploadFileResultDto();
+        BeanUtils.copyProperties(files, uploadFileResultDto);
+
+        return uploadFileResultDto;
+    }
+
+    /**
+     * @param companyId           公司id
+     * @param uploadFileParamsDto 上传参数信息
+     * @param md5                 md5
+     * @param bucket              桶
+     * @param objectName          对象名
+     * @return com.xuecheng.media.model.po.MediaFiles
+     * @description 插入数据库
+     * @author: woldier
+     * @date: 2023/3/10 15:21
+     */
+    @Transactional
+    public MediaFiles insertMediaFile2DB(Long companyId, UploadFileParamsDto uploadFileParamsDto, String md5, String bucket, String objectName) {
+        /*添加数据库之前,根据md5查询该文件是否已经存在*/
+        MediaFiles files = mediaFilesMapper.selectById(md5);
+        if (files == null) {
+            /*生成数据库entity*/
+            MediaFiles mediaFiles = new MediaFiles();
+            BeanUtils.copyProperties(uploadFileParamsDto, mediaFiles);
+            //设置uploadFileParamsDto中不存在的部分
+            //设置id
+            mediaFiles.setId(md5);
+            //机构id
+            mediaFiles.setCompanyId(companyId);
+            //bucket
+            mediaFiles.setBucket(bucket);
+            //存储路径
+            mediaFiles.setFilePath(objectName);
+            //file_id
+            mediaFiles.setFileId(md5);
+            //url
+            mediaFiles.setUrl("/" + bucket + "/" + objectName);
+            //上传时间,更新时间自动设置
+            mediaFiles.setCreateDate(LocalDateTime.now());
+            mediaFiles.setCreateDate(LocalDateTime.now());
+            //文件状态
+            mediaFiles.setStatus("1");
+            //审核状态
+            mediaFiles.setAuditStatus(MediaAuditStatus.Approved.getCode());
+
+            int insert = mediaFilesMapper.insert(mediaFiles);
+
+            if (insert <= 0) {
+                log.debug("向数据库保存文件失败,bucket:{},objectName{}", fileBucket, objectName);
+                return null;
+            }
+            return mediaFiles;
+        }
+        return files;
+    }
+
+    /**
+     * @param md5 文件md值
+     * @return com.xuecheng.base.model.RestResponse
+     * @description 检查文件是否存在
+     * @author: woldier
+     * @date: 2023/3/11 22:31
+     */
+    @Override
+    public RestResponse checkFile(String md5) {
+        /*
+         * 1.查询md5值数据库
+         * 2.若没有数据直接返回false
+         * 3.若有则查询minio,查看是否可以get到对象,对于视频文件我们也要将他分文件夹存储,分为两级目录,第一级是md5的第一个字符,第二级是md5的第二个字符
+         * 如avsdsdsdsds 为某文件的md值,那么该文件在minio中的存储路径是 a/v/avsdsdsdsds.文件后缀
+         * */
+        //从数据库查询
+        MediaFiles mediaFiles = this.getById(md5);
+        if (mediaFiles != null) {//数据库中查询到不为空
+            //获取桶
+            String bucket = mediaFiles.getBucket();
+            //获取存储路径
+            String filePath = mediaFiles.getFilePath();
+            Boolean status = checkFileInMinio(bucket, filePath);
+            if (Boolean.TRUE.equals(status)) return RestResponse.success(Boolean.TRUE);
+        }
+
+        //查询到数据库为空,或者查询minio报错返回错误
+        return RestResponse.success(Boolean.FALSE);
+    }
+
+    /**
+     * @param bucket     桶
+     * @param objectName 对象路径
+     * @return Boolean 若存在返回True 不存在返回False
+     * @description 检查minio中是否存在
+     * @author: woldier
+     * @date: 2023/3/12 10:35
+     */
+    @Nullable
+    private Boolean checkFileInMinio(String bucket, String objectName) {
+        return checkFileInMinio(GetObjectArgs.builder().bucket(bucket).object(objectName).build());
+    }
+
+    private Boolean checkFileInMinio(GetObjectArgs getObjectArgs) {
+        try (InputStream inputStream = minioClient.getObject(getObjectArgs)) { //通过这种方法创建额流会在try catch后自动释放
+            //若input流对象不为空,说明minio中有数据,那么返回存在
+            if (inputStream != null) return Boolean.TRUE;
+        } catch (Exception e) {
+            log.debug("在minio中获取对象出错bucket:{},objectName{},errInfo{}", getObjectArgs.bucket(), getObjectArgs.object(), e.getMessage());
+        }
+        return Boolean.FALSE;
+    }
+
+    /**
+     * @param bucket     桶
+     * @param objectName 对象名
+     * @return StatObjectResponse
+     * @description 获取minio对象信息
+     * 此方法中不会做任何事,而是调用 private long  getObjStatInMinio(StatObjectArgs statObjectArgs)
+     * @author: woldier
+     * @date: 2023/3/12 15:08
+     */
+    private StatObjectResponse getObjStatInMinio(String bucket, String objectName) {
+        return getObjStatInMinio(StatObjectArgs.builder().bucket(bucket).object(objectName).build());
+    }
+
+    /**
+     * @param statObjectArgs minio 对象状态参数类
+     * @return StatObjectResponse
+     * @description 获取minio对象信息
+     * @author: woldier
+     * @date: 2023/3/12 15:08
+     */
+    private StatObjectResponse getObjStatInMinio(StatObjectArgs statObjectArgs) {
+        StatObjectResponse statObjectResponse = null;
+        try {
+             statObjectResponse = minioClient.statObject(statObjectArgs);
+        } catch (Exception e) {
+            log.debug("获取minio对象信息时出错,bucket{},objectName{},errMsg{}", statObjectArgs.bucket(), statObjectArgs.object(), e.getMessage());
+        }
+        return statObjectResponse;
+    }
+
+    /**
+     * @param md5 md5值
+     * @return java.lang.String
+     * @description 根据md5值得到存储在minio中的分片对象文件夹路径
+     * 如文件md5为 0dbc6409995eaa9589676c585459e02b 则得到的文件夹路径为 0/d/0dbc6409995eaa9589676c585459e02b/chunk/
+     * @author: woldier
+     * @date: 2023/3/11 22:57
+     */
+    private String getChunkFolderByMd5(String md5) {
+
+        return md5.charAt(0) + "/" + md5.charAt(1) + "/" + md5 + "/chunk/";
+
+    }
+
+    private String getFolderByMd5(String md5) {
+        return md5.charAt(0) + "/" + md5.charAt(1) + "/";
+    }
+
+
+    /**
+     * @param md5   文件md值
+     * @param chunk 分片id
+     * @return com.xuecheng.base.model.RestResponse
+     * @description 检查文件分片是否存在;
+     * 首先分片数据记录并不会存在于数据库中,
+     * 因此只能通过访问minio来进行查询,
+     * 我们可以通过minio的getobject方法,有则说明可以
+     * @author: woldier
+     * @date: 2023/3/11 22:34
+     */
+    @Override
+    public RestResponse checkChunk(String md5, Integer chunk) {
+        /*
+         * 由于分片文件信息不会记录在db中,因此我们之后访问minio进行查询
+         * 1.通过md5得到分片文件存放的文件夹
+         * 2.将文件夹路径与分片号chunk合并,得到分片路径
+         * 例如 分片为23 md5为0dbc6409995eaa9589676c585459e02b
+         * 则拼接的对象 路径为 0/d/0dbc6409995eaa9589676c585459e02b/chunk/23
+         * 3.通过Minio查看是否可以成功获取若能说明存在返回成功,否则返回失败
+         * */
+        //获取分片文件夹路径
+        String chunkFolder = getChunkFolderByMd5(md5);
+        //得到分片存储路径
+        String objectName = chunkFolder + chunk;
+        Boolean exist = checkFileInMinio(videoBucket, objectName);
+        if (Boolean.TRUE.equals(exist)) return RestResponse.success(Boolean.TRUE);
+
+        return RestResponse.success(Boolean.FALSE);
+    }
+
+    /**
+     * @param md5           md值
+     * @param chunk         分片id
+     * @param localFilePath 本地文件路径
+     * @return com.xuecheng.base.model.RestResponse
+     * @description 上传文件分块
+     * @author: woldier
+     * @date: 2023/3/12 10:50
+     */
+    @Override
+    public RestResponse uploadChuck(String md5, Integer chunk, String localFilePath) {
+        /*
+         * 1.通过md5获取分片存储文件夹
+         * 2.拼接得到分片文件存储路径
+         * 2.上传文件到minio
+         * */
+        //获取文件路径
+        String chunkFolder = getChunkFolderByMd5(md5);
+        //拼接得到文件存储路径
+        String objectName = chunkFolder + chunk;
+        //生成文件contentType
+        String mimeType = getMimeType(null); //为空会返回
+        //上传到服务器
+        if (minIOUpload(localFilePath, mimeType, videoBucket, objectName))
+            return RestResponse.success(Boolean.TRUE);
+        return RestResponse.success(Boolean.FALSE);
+    }
+
+
+    /**
+     * @param md5        md5id
+     * @param chunkTotal 分块总数
+     * @return com.xuecheng.base.model.RestResponse
+     * @description 分块合并
+     * @author: woldier
+     * @date: 2023/3/12 13:01
+     */
+    @Override
+    public RestResponse mergeChunk(String md5, Integer chunkTotal, Long companyId, String fileName) throws IOException {
+        /*
+         *1.生成分片数组
+         * 2.查询分片是否存在
+         * 3.合并分片
+         * 4.获取合并后文件的信息
+         * 5.写入数据库
+         * */
+        String chunkFolder = getChunkFolderByMd5(md5);
+        //生成用于查询是否存在的参数集合
+        List<ComposeSource> composeSourceList = Stream.iterate(0, t -> t + 1).limit(chunkTotal).map(
+                e -> ComposeSource.builder().bucket(videoBucket).object(chunkFolder + e).build()).collect(Collectors.toList());
+        //检查分片是否存在
+        for (ComposeSource elem : composeSourceList) {
+            if (checkFileInMinio(videoBucket, elem.object()).equals(Boolean.FALSE))
+                return RestResponse.success(Boolean.FALSE);
+        }
+        //合并分片
+        //拿到文件存储路径
+        String folder = getFolderByMd5(md5); // 得到文件夹
+        String suffix = fileName.substring(fileName.indexOf(".")); //得到后缀
+        String objectName = folder + md5 + suffix;
+        //minio合并,若失败则返回
+        if (composeObjectInMinio(videoBucket, objectName, composeSourceList)) RestResponse.success(false);
+        long size = -1L;
+        File download = File.createTempFile("download","temp");//创建一个临时文件
+        try (
+                InputStream getObjectResponse = minioClient.getObject(GetObjectArgs.builder().bucket(videoBucket).object(objectName).build()); //minio文件输入流
+                FileOutputStream fileOutputStream = new FileOutputStream(download) //本地文件输出流
+        ){
+            IOUtils.copy(getObjectResponse,fileOutputStream);  //input -> output
+            String downLoadMd5 = DigestUtils.md5Hex(Files.newInputStream(download.toPath())); //得到下载文件的md5值
+            if(!downLoadMd5.equals(md5)) { //如果两个md5值不相同
+                deleteObjInMinio(videoBucket, objectName); //删除对应文件
+                return RestResponse.validfail("合并后的文件md5值与原md5值不一致");
+            }
+            size = download.length();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        finally {
+            boolean delete = download.delete(); //删除临时文件
+        }
+        //md5值相等说明合并分片成功
+
+
+        //操作数据库
+        MediaFileService currentProxy = (MediaFileService) AopContext.currentProxy();
+        UploadFileParamsDto uploadFileParamsDto = new UploadFileParamsDto();
+        //设置文件名
+        uploadFileParamsDto.setFilename(fileName);
+        //设置文件大小
+        StatObjectResponse objStatInMinio = getObjStatInMinio(videoBucket, objectName); //得到对象信息
+        if (objStatInMinio== null) {
+            log.debug("从minio中获取合并后的文件信息失败,bucket{},objectName{}",videoBucket,objectName);
+            return RestResponse.success(false);
+        }
+        uploadFileParamsDto.setFileSize(size);
+        //文件类型
+        uploadFileParamsDto.setFileType(MediaResourceType.VIDEO.getCode());
+        //文件标签
+        uploadFileParamsDto.setTags("课程视频");
+        currentProxy.insertMediaFile2DB(companyId, uploadFileParamsDto, md5, videoBucket, objectName);
+
+
+        //删除分片数据
+
+        composeSourceList.forEach(e->{
+            deleteObjInMinio(videoBucket,e.object());
+        });
+
+        return RestResponse.success(true);
+    }
+    /**
+    * @description 删除对象
+    * @param bucket
+     * @param objectName
+    * @return boolean
+    * @author: woldier
+    * @date: 2023/3/12 16:40
+    */
+    private boolean deleteObjInMinio(String bucket, String objectName){
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(objectName)
+                            .build()
+            );
+        }
+        catch (Exception e){
+            log.debug("删除失败,bucket{},objectName{},err{}",bucket,objectName,e.getMessage());
+            return false;
+        }
+        return true;
+    }
+    /**
+     * minio合并文件
+     *
+     * @param bucket            桶
+     * @param objectName        对象名
+     * @param composeSourceList 分片信息list
+     * @return
+     */
+    private boolean composeObjectInMinio(String bucket, String objectName, List<ComposeSource> composeSourceList) {
+        /*minio文件合并*/
+        ComposeObjectArgs composeObjectArgs = ComposeObjectArgs.builder().bucket(bucket).object(objectName).sources(composeSourceList).build();
+        try {
+            minioClient.composeObject(composeObjectArgs);
+        } catch (Exception e) {
+            e.printStackTrace();
+            log.debug("合并数据分片出现错误,bucket{},objectName{},errMsg{}", bucket, objectName, e.getMessage());
+            return false;
+        }
+        return true;
+    }
+
+    @NotNull
+    private static String getMd5(String localFilePath) throws XueChengPlusException {
+        String md5 = null;
+        try {
+            md5 = DigestUtils.md5Hex(Files.newInputStream(new File(localFilePath).toPath()));
+        } catch (IOException e) {
+            XueChengPlusException.cast("md5计算时出错");
+        }
+        return md5;
+    }
+
+    /**
+     * @param fileName 带后缀文件名 若为空 返回 MediaType.APPLICATION_OCTET_STREAM_VALUE;
+     * @return java.lang.String
+     * @description 根据文件后缀名获取MimeType
+     * @author: woldier
+     * @date: 2023/3/10 13:55
+     */
+    private String getMimeType(String fileName) {
+        if (fileName == null) fileName = "";
+        ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(fileName);
+        String mimeType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        if (contentInfo != null) mimeType = contentInfo.getMimeType();
+        return mimeType;
+    }
+
+    /**
+     * @param localFilePath 本地文件路径
+     * @param fileType      文件类型
+     * @param bucket        桶名称
+     * @return boolean
+     * @description 上传文件到MinIO的方法
+     * @author: woldier
+     * @date: 2023/3/10 13:33
+     */
+    private boolean minIOUpload(String localFilePath, String fileType, String bucket, String objectName) {
+        /*上传*/
+        try {
+            minioClient.uploadObject(
+                    UploadObjectArgs.builder()
+                            .bucket(bucket)  //桶
+                            .object(objectName) // 对象名,在桶下存储的文件
+                            .filename(localFilePath)  //指定本地文件路径
+                            .contentType(fileType) //设置媒体文件类型
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("文件上传到MinIO出错,buckcet:{},path:{},error:{}", bucket, objectName, e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+
+    }
+}
+
+```
+
+
+
+##### 4.5.4.3 接口代码完善
+
+```java
+```
+
+```
+package com.xuecheng.media.api;
+
+import com.xuecheng.base.exception.CommonError;
+import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.base.model.RestResponse;
+import com.xuecheng.media.model.dto.MediaResourceType;
+import com.xuecheng.media.model.dto.UploadFileParamsDto;
+import com.xuecheng.media.service.MediaFileService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+import java.io.File;
+import java.io.IOException;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 大文件上传接口
+ * @date 2023/3/11 11:43
+ **/
+@Api(value = "大文件上传",tags = "大文件上传接口")
+@RestController
+@RequiredArgsConstructor
+@Slf4j
+public class BigFileController {
+
+    private final MediaFileService mediaFileService;
+    /**
+    * @description 文件上传前的检查接口
+    * @param fileMd5  文件md5值
+    * @return com.xuecheng.base.model.RestResponse
+    * @author: woldier
+    * @date: 2023/3/11 11:54
+    */
+    @ApiOperation("检查文件是否存在")
+    @PostMapping("/upload/checkfile")
+    public RestResponse checkFile(
+            @RequestParam(value = "fileMd5")  String  fileMd5
+    ){
+        return mediaFileService.checkFile(fileMd5);
+
+    }
+
+    /**
+    * @description 检查分片是否存在
+    * @param fileMd5 文件md5值
+     * @param chunk  分片id
+    * @return com.xuecheng.base.model.RestResponse
+    * @author: woldier
+    * @date: 2023/3/11 11:59
+    */
+    @ApiOperation("检查分片是否存在")
+    @PostMapping("/upload/checkchunk")
+    public RestResponse checkChunk(
+            @RequestParam(value = "fileMd5") String  fileMd5,
+            @RequestParam(value = "chunk") Integer chunk
+            ){
+        return mediaFileService.checkChunk(fileMd5, chunk);
+    }
+
+
+    /**
+    * @description 分片上传接口
+    * @param file 文件
+     * @param fileMd5 分片md5
+     * @param chunk  分片id
+    * @return com.xuecheng.base.model.RestResponse
+    * @author: woldier
+    * @date: 2023/3/11 12:04
+    */
+    @ApiOperation("上传分片")
+    @PostMapping("/upload/uploadchunk")
+    public RestResponse uploadChunk(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("fileMd5")  String fileMd5,
+            @RequestParam("chunk")  Integer chunk
+            ) throws IOException {
+        /*
+        * 1.暂存file到本地
+        * 2. 调用service服务
+        * */
+        //创建临时文件
+        File tempFile =  File.createTempFile("minio", "temp");
+        file.transferTo(tempFile);
+        String localFilePath = tempFile.getAbsolutePath();
+
+        RestResponse restResponse = mediaFileService.uploadChuck(fileMd5, chunk, localFilePath);
+        //删除临时文件
+        if(!tempFile.delete()) log.debug("删除临时文件失败,filePath{}",localFilePath);
+        return restResponse;
+    }
+
+    /**
+    * @description 合并分片
+    * @param fileName 文件名
+     * @param fileMd5 文件md5值
+     * @param chunkTotal  分片总数
+    * @return com.xuecheng.base.model.RestResponse
+    * @author: woldier
+    * @date: 2023/3/11 12:18
+    */
+    @ApiOperation("合并分片")
+    @PostMapping("/upload/mergechunks")
+    public RestResponse mergeChunks(
+            @RequestParam("fileMd5")  String fileMd5,
+            @RequestParam("fileName") String fileName,
+            @RequestParam("chunkTotal")  Integer chunkTotal
+    ) throws IOException {
+
+        return mediaFileService.mergeChunk(fileMd5,chunkTotal,getCompanyId(),fileName);
+    }
+
+    private long getCompanyId(){
+        return 1232141425L;
+    }
+}
+```
+
+#### 4.5.5 接口测试
+
+![image-20230312173750961](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312173750961.png)
+
+
+
+经过测试我发现，这里合并后在minio中生成的md值与我们自己生成的不同，但是我们将该文件从minio中下载下来生成的md5值却又是与前端传的相同的，此外我尝试把下载下来的文件再次上传上去，结果也是minio 与我们生成的不同，但是我们通过minio网页上传的文件其生成的md5值有的则是与前端相同的。
+
+![image-20230312182248963](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312182248963.png)
+
+猜测minio中md5的生成算法可能和我们用的有一些差别
+
+
 
 
 
