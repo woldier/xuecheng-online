@@ -1,4 +1,4 @@
-package com.xuecheng.system.config;
+package com.xuecheng.media.config;
 
 import com.xxl.job.core.executor.impl.XxlJobSpringExecutor;
 import org.slf4j.Logger;
