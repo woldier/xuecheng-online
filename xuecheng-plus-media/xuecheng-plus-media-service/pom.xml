@@ -77,5 +77,10 @@
             <artifactId>aspectjweaver</artifactId>
         </dependency>
     </dependencies>
+    <!--xxl-job-->
+    <dependency>
+        <groupId>com.xuxueli</groupId>
+        <artifactId>xxl-job-core</artifactId>
+    </dependency>
 
 </project>
