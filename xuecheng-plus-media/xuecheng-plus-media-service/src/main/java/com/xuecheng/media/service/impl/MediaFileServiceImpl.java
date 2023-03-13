@@ -210,6 +210,7 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
             mediaProcess.setFileId(md5); //设置md5
             mediaProcess.setCreateDate(LocalDateTime.now());  //设置创建时间
             mediaProcess.setStatus(MediaProcessStat.Pending.getCode()); //设置处理状态
+            mediaProcessService.save(mediaProcess);
         }
     }
 
