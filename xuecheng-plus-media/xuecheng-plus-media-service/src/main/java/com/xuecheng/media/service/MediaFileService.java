@@ -56,6 +56,17 @@ public interface MediaFileService extends IService<MediaFiles> {
      */
     MediaFiles insertMediaFile2DB(Long companyId, UploadFileParamsDto uploadFileParamsDto, String md5, String bucket, String objectName);
 
+    /**
+    * @description 判断是否是avi格式视频,若是插入到mediaProcess
+    * @param md5
+     * @param bucket
+     * @param objectName
+     * @param mimeType
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/13 9:22
+    */
+    void insertMediaProcessTask(String md5, String bucket, String objectName, String mimeType);
 
     /**
      * @param md5 文件md值
