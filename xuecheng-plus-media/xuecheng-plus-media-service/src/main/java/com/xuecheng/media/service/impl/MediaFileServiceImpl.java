@@ -12,7 +12,9 @@ import com.xuecheng.base.model.RestResponse;
 import com.xuecheng.media.mapper.MediaFilesMapper;
 import com.xuecheng.media.model.dto.*;
 import com.xuecheng.media.model.po.MediaFiles;
+import com.xuecheng.media.model.po.MediaProcess;
 import com.xuecheng.media.service.MediaFileService;
+import com.xuecheng.media.service.MediaProcessService;
 import io.minio.*;
 import io.minio.errors.*;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.*;
@@ -73,6 +76,7 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
      */
     private final MinioClient minioClient;
 
+    private final MediaProcessService mediaProcessService;
     @Override
     public PageResult<MediaFiles> queryMediaFiels(Long companyId, PageParams pageParams, QueryMediaParamsDto queryMediaParamsDto) {
 
@@ -168,7 +172,10 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
             //file_id
             mediaFiles.setFileId(md5);
             //url
-            mediaFiles.setUrl("/" + bucket + "/" + objectName);
+            //设置url字段需要判断当前的contentType是否为image或者mp4，只有这两种格式才能设置url直接预览
+            String mimeType = getMimeType(uploadFileParamsDto.getFilename());//获取文件content-type
+            if(mimeType.contains("image")||mimeType.contains("mp4"))//若为图片或者mp4格式视频设置url
+                mediaFiles.setUrl("/" + bucket + "/" + objectName);
             //上传时间,更新时间自动设置
             mediaFiles.setCreateDate(LocalDateTime.now());
             mediaFiles.setCreateDate(LocalDateTime.now());
@@ -179,6 +186,12 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
 
             int insert = mediaFilesMapper.insert(mediaFiles);
 
+            /*
+            * 若为avi格式，则插入转码任务
+            * */
+            getAopContextProxy().insertMediaProcessTask(md5, bucket, objectName, mimeType);
+
+
             if (insert <= 0) {
                 log.debug("向数据库保存文件失败,bucket:{},objectName{}", fileBucket, objectName);
                 return null;
@@ -186,6 +199,18 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
             return mediaFiles;
         }
         return files;
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY) //设置传播级别为调用本方法的方法必须具有事务
+    public  void insertMediaProcessTask(String md5, String bucket, String objectName, String mimeType) {
+        if("video/x-msvideo".equals(mimeType)){
+            MediaProcess mediaProcess = new MediaProcess();
+            mediaProcess.setBucket(bucket); //设置桶
+            mediaProcess.setFilename(objectName); //设置对象名
+            mediaProcess.setFileId(md5); //设置md5
+            mediaProcess.setCreateDate(LocalDateTime.now());  //设置创建时间
+            mediaProcess.setStatus(MediaProcessStat.Pending.getCode()); //设置处理状态
+        }
     }
 
     /**
@@ -535,4 +560,16 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
         return true;
 
     }
+
+    /**
+    * @description 获取代理对象
+    *
+    * @return com.xuecheng.media.service.MediaFileService
+    * @author: woldier
+    * @date: 2023/3/13 9:20
+    */
+    private MediaFileService getAopContextProxy(){
+        return (MediaFileService) AopContext.currentProxy();
+    }
+
 }
