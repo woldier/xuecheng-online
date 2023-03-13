@@ -1,2 +1,8 @@
 ### 查询所有
 GET {{system_host}}/system/dictionary/all
+
+### 查询所有
+GET 192.168.0.106:63110/system/dictionary/all
+
+### 查询所有
+GET {{gateway_host}}/system/dictionary/all
