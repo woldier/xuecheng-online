@@ -542,7 +542,7 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
      * @author: woldier
      * @date: 2023/3/10 13:33
      */
-    private boolean minIOUpload(String localFilePath, String fileType, String bucket, String objectName) {
+    public boolean minIOUpload(String localFilePath, String fileType, String bucket, String objectName) {
         /*上传*/
         try {
             minioClient.uploadObject(
@@ -554,12 +554,42 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
                             .build()
             );
         } catch (Exception e) {
-            log.error("文件上传到MinIO出错,buckcet:{},path:{},error:{}", bucket, objectName, e.getMessage());
+            log.error("文件上传到MinIO出错,bucket:{},path:{},error:{}", bucket, objectName, e.getMessage());
             e.printStackTrace();
             return false;
         }
         return true;
 
+    }
+
+
+    /***
+     * @description minio文件下载 到本地
+     * @param bucket 桶
+     * @param objectName  对象名
+     * @return java.io.File 返回一个文件对象
+     * @author: woldier
+     * @date: 2023/3/15 21:37
+     */
+    @Override
+    public File minIODownLoad(String bucket, String objectName) {
+        File tempFile = null;
+        try {
+            tempFile= File.createTempFile("minio", ".temp");
+        } catch (Exception e) {
+            log.debug("文件上传到MinIO出错,bucket:{},path:{},error:{}", bucket, objectName, e.getMessage());
+            return null;
+        }
+        try (
+                FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
+                InputStream inputStream = minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(objectName).build())
+        ){
+            IOUtils.copy(inputStream,fileOutputStream);
+        }
+        catch (Exception e){
+            log.debug("minio中不存在文件,或者创建文件输出流失败");
+        }
+        return tempFile;
     }
 
     /**

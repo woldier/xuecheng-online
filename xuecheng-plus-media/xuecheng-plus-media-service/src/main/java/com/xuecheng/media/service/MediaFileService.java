@@ -11,6 +11,7 @@ import com.xuecheng.media.model.dto.UploadFileResultDto;
 import com.xuecheng.media.model.po.MediaFiles;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
@@ -113,4 +114,27 @@ public interface MediaFileService extends IService<MediaFiles> {
     * @date: 2023/3/12 13:01
     */
     RestResponse mergeChunk(String md5, Integer chunkTotal,Long companyId, String fileName) throws IOException;
+
+
+    /**
+     * @param localFilePath 本地文件路径
+     * @param fileType      文件类型
+     * @param bucket        桶名称
+     * @return boolean
+     * @description 上传文件到MinIO的方法
+     * @author: woldier
+     * @date: 2023/3/10 13:33
+     */
+    public boolean minIOUpload(String localFilePath, String fileType, String bucket, String objectName) ;
+
+
+    /***
+    * @description minio文件下载 到本地
+    * @param bucket 桶
+     * @param objectName  对象名
+    * @return java.io.File 返回一个文件对象
+    * @author: woldier
+    * @date: 2023/3/15 21:37
+    */
+    public File minIODownLoad(String bucket, String objectName);
 }
