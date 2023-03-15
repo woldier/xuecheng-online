@@ -33,12 +33,17 @@ public class MediaProcess implements Serializable {
     private String filename;
 
     /**
-     * 存储源
+     * 存储桶
      */
     private String bucket;
 
     /**
-     * 状态,1:未处理，视频处理完成更新为2
+     * 存储路径
+     */
+    private String filePath;
+
+    /**
+     * 状态,1:未处理，2：处理成功  3处理失败
      */
     private String status;
 
@@ -54,9 +59,19 @@ public class MediaProcess implements Serializable {
     private LocalDateTime finishDate;
 
     /**
+     * 失败次数
+     */
+    private Integer failCount;
+
+    /**
      * 媒资文件访问地址
      */
     private String url;
+
+    /**
+     * 失败原因
+     */
+    private String errormsg;
 
 
 }
