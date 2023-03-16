@@ -101,7 +101,7 @@ public class TeachplanController {
 
     @ApiOperation("课程计划绑定媒资")
     @DeleteMapping("/teachplan/association/media/{teachPlanId}/{mediaId}")
-    public void deleteAssociationMedia(@PathVariable("teachPlanId") Long teachPlanId,@PathVariable("mediaId") Long mediaId) throws XueChengPlusException {
+    public void deleteAssociationMedia(@PathVariable("teachPlanId") Long teachPlanId,@PathVariable("mediaId") String mediaId) throws XueChengPlusException {
         teachplanService.deleteAssociation(teachPlanId,mediaId);
     }
 

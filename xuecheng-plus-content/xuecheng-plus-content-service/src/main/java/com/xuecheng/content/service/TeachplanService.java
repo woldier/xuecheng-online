@@ -75,6 +75,6 @@ public interface TeachplanService extends IService<Teachplan> {
     * @author: woldier
     * @date: 2023/3/16 16:00
     */
-    void deleteAssociation(Long teachPlanId, Long mediaId) throws XueChengPlusException;
+    void deleteAssociation(Long teachPlanId, String mediaId) throws XueChengPlusException;
 
 }

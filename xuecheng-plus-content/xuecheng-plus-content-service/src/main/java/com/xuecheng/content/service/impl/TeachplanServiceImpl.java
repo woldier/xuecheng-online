@@ -241,7 +241,7 @@ public class TeachplanServiceImpl extends ServiceImpl<TeachplanMapper, Teachplan
      * @date: 2023/3/16 16:00
      */
     @Override
-    public void deleteAssociation(Long teachPlanId, Long mediaId) throws XueChengPlusException {
+    public void deleteAssociation(Long teachPlanId, String mediaId) throws XueChengPlusException {
         boolean b = teachplanMediaService.removeById(teachPlanId);
         if(!b) XueChengPlusException.cast("删除操作不成功");
     }
