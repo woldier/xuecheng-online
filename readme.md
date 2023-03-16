@@ -9706,9 +9706,1780 @@ public class BigFileController {
 
 猜测minio中md5的生成算法可能和我们用的有一些差别
 
+#### 4.5.6 面试
+
+##### 4.5.6.1 事务相关
+
+1. 什么情况下事务会失效
+   1. 在方法中捕获异常没有抛出
+   2. 非事务方法调用事务方法  \ 一个未开启事务的方法调用了事务方法会产生事务失效，因为这种情况时在方法内部调用事务方法，并不是通过代理对象调用事务方法。
+   3. 事务方法内部调用事务方法 \ 内部调用的这个方法开启了事务且设置了POROPAGATION_REQUEST_NET 如果不是通过代理对象调用，依旧没办法开启一个新的事务
+   4. @Transactional标记的方法不是public
+   5. 抛出的异常与rollbackFor指定的异常不一致，默认rollbackFor指定的时RuntimeException
+   6. 数据库不支持事务，比如mysql的 MyISAM引擎
+   7. Spring的传播行为导致事务失效，比如PROPAGATION_NEVER,PROPAGATION_SUPPORTED
+
+![image-20230312185910100](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312185910100.png)
+
+详解blog https://blog.csdn.net/yuan520588/article/details/88919659
+
+##### 4.5.6.2 分片上传
+
+![image-20230312192249573](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312192249573.png)
 
 
 
+
+
+ 
+
+
+
+### 4.6 文件预览
+
+#### 4.6.1 需求分析
+
+##### 4.6.1.1 业务流程
+
+##### 4.6.1.2 数据模型
+
+#### 4.6.2 接口定义
+
+
+
+#### 4.6.3 接口开发
+
+##### 4.6.3.1 DAO开发
+
+##### 4.6.3.2 Service开发
+
+##### 4.6.3.3 接口代码完善
+
+#### 4.6.4 接口测试
+
+
+
+
+
+
+
+### 4.7 视频处理
+
+#### 4.7.1 分布式任务处理
+
+##### 4.7.1.1 什么事分布式任务处理
+
+视频上传成功需要对视频的格式进行处理，如何用Java程序对视频进行处理呢？这里有一个关键的需求就是当视频比较多的时候我们如何可以高效处理。
+
+如何去高效处理一批任务呢？
+
+1. 多线程
+
+多线程时充分利用单机的资源
+
+2. 分布式加多线程
+
+充分利用多台计算机，每台计算机使用多线程处理。
+
+方案2可扩展性更强。
+
+方案2是一种分布式任务调度的处理方案。
+
+什么是分布式任务调度？
+
+我们可以先思考一下下面业务场景的解决方案：
+
+​    某电商系统需要在每天上午10点，下午3点，晚上8点发放一批优惠券。
+
+​    某财务系统需要在每天上午10点前结算前一天的账单数据，统计汇总。
+
+​    某电商平台每天凌晨3点，要对订单中的无效订单进行清理。
+
+​    12306网站会根据车次不同，设置几个时间点分批次放票。
+
+​    电商整点抢购，商品价格某天上午8点整开始优惠。
+
+​    商品成功发货后，需要向客户发送短信提醒。
+
+类似的场景还有很多，我们该如何实现？
+
+以上这些场景，就是任务调度所需要解决的问题。
+
+**任务调度顾名思义，就是对任务的调度，它是指系统为了完成特定业务，基于给定时间点，给定时间间隔或者给定执行次数自动执行任务。**
+
+如何实现任务调度？
+
+- 多线程方式实现
+
+学过多线程的同学，可能会想到，我们可以开启一个线程，每sleep一段时间，就去检查是否已到预期执行时间。
+
+以下代码简单实现了任务调度的功能：
+
+```java
+public static void main(String[] args) {    
+    //任务执行间隔时间
+    final long timeInterval = 1000;
+    Runnable runnable = new Runnable() {
+        public void run() {
+            while (true) {
+                //TODO：something
+                try {
+                    Thread.sleep(timeInterval);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    };
+    Thread thread = new Thread(runnable);
+    thread.start();
+}
+
+```
+
+上面的代码实现了按一定的间隔时间执行任务调度的功能。
+
+Jdk也为我们提供了相关支持，如Timer、ScheduledExecutor，下边我们了解下。
+
+- Timer方式
+
+```java
+public static void main(String[] args){  
+    Timer timer = new Timer();  
+    timer.schedule(new TimerTask(){
+        @Override  
+        public void run() {  
+           //TODO：something
+        }  
+    }, 1000, 2000);  //1秒后开始调度，每2秒执行一次
+}
+
+```
+
+Timer的优点在于简单易用，每个Timer对应一个线程，因此可以同时启动多个Timer并行执行多个任务，同一个Timer中的任务是串行执行。
+
+- ScheduledExecutor
+
+```java
+public static void main(String [] agrs){
+    ScheduledExecutorService service = Executors.newScheduledThreadPool(10);
+    service.scheduleAtFixedRate(
+            new Runnable() {
+                @Override
+                public void run() {
+                    //TODO：something
+                    System.out.println("todo something");
+                }
+            }, 1,
+            2, TimeUnit.SECONDS);
+}
+
+```
+
+Java 5 推出了基于线程池设计的 ScheduledExecutor，其设计思想是，每一个被调度的任务都会由线程池中一个线程去执行，因此任务是并发执行的，相互之间不会受到干扰。
+
+​    Timer 和 ScheduledExecutor 都仅能提供基于开始时间与重复间隔的任务调度，不能胜任更加复杂的调度需求。比如，设置每月第一天凌晨1点执行任务、复杂调度任务的管理、任务间传递数据等等。
+
+​    Quartz 是一个功能强大的任务调度框架，它可以满足更多更复杂的调度需求，Quartz 设计的核心类包括 Scheduler, Job 以及 Trigger。其中，Job 负责定义需要执行的任务，Trigger 负责设置调度策略，Scheduler 将二者组装在一起，并触发任务开始执行。Quartz支持简单的按时间间隔调度、还支持按日历调度方式，通过设置CronTrigger表达式（包括：秒、分、时、日、月、周、年）进行任务调度。
+
+- 第三方Quartz方式实现
+
+```java
+public static void main(String [] agrs) throws SchedulerException {
+    //创建一个Scheduler
+    SchedulerFactory schedulerFactory = new StdSchedulerFactory();
+    Scheduler scheduler = schedulerFactory.getScheduler();
+    //创建JobDetail
+    JobBuilder jobDetailBuilder = JobBuilder.newJob(MyJob.class);
+    jobDetailBuilder.withIdentity("jobName","jobGroupName");
+    JobDetail jobDetail = jobDetailBuilder.build();
+    //创建触发的CronTrigger 支持按日历调度
+        CronTrigger trigger = TriggerBuilder.newTrigger()
+                .withIdentity("triggerName", "triggerGroupName")
+                .startNow()
+                .withSchedule(CronScheduleBuilder.cronSchedule("0/2 * * * * ?"))
+                .build();
+        //创建触发的SimpleTrigger 简单的间隔调度
+        /*SimpleTrigger trigger = TriggerBuilder.newTrigger()
+                .withIdentity("triggerName","triggerGroupName")
+                .startNow()
+                .withSchedule(SimpleScheduleBuilder
+                        .simpleSchedule()
+                        .withIntervalInSeconds(2)
+                        .repeatForever())
+                .build();*/
+    scheduler.scheduleJob(jobDetail,trigger);
+    scheduler.start();
+}
+public class MyJob implements Job {
+    @Override
+    public void execute(JobExecutionContext jobExecutionContext){
+        System.out.println("todo something");
+    }
+}
+
+
+```
+
+通过以上内容我们学习了什么是任务调度，任务调度所解决的问题，以及任务调度的多种实现方式。
+
+**什么是分布式任务调度？**
+
+通常任务调度的程序是集成在应用中的，比如：优惠卷服务中包括了定时发放优惠卷的的调度程序，结算服务中包括了定期生成报表的任务调度程序，由于采用分布式架构，一个服务往往会部署多个冗余实例来运行我们的业务，在这种分布式系统环境下运行任务调度，我们称之为**分布式任务调度**，如下图：
+
+![image-20230312212109189](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312212109189.png)
+
+**分布式调度要实现的目标：**
+
+​    不管是任务调度程序集成在应用程序中，还是单独构建的任务调度系统，如果采用分布式调度任务的方式就相当于将任务调度程序分布式构建，这样就可以具有分布式系统的特点，并且提高任务的调度处理能力：
+
+1、并行任务调度
+
+​    并行任务调度实现靠多线程，如果有大量任务需要调度，此时光靠多线程就会有瓶颈了，因为一台计算机CPU的处理能力是有限的。
+
+​    如果将任务调度程序分布式部署，每个结点还可以部署为集群，这样就可以让多台计算机共同去完成任务调度，我们可以将任务分割为若干个分片，由不同的实例并行执行，来提高任务调度的处理效率。
+
+2、高可用
+
+​    若某一个实例宕机，不影响其他实例来执行任务。
+
+3、弹性扩容
+
+​    当集群中增加实例就可以提高并执行任务的处理效率。
+
+4、任务管理与监测
+
+​    对系统中存在的所有定时任务进行统一的管理及监测。让开发人员及运维人员能够时刻了解任务执行情况，从而做出快速的应急处理响应。
+
+5、避免任务重复执行
+
+​    当任务调度以集群方式部署，同一个任务调度可能会执行多次，比如在上面提到的电商系统中到点发优惠券的例子，就会发放多次优惠券，对公司造成很多损失，所以我们需要控制相同的任务在多个运行实例上只执行一次。
+
+##### 4.7.1.2 XXL-JOB介绍
+
+XXL-JOB是一个轻量级分布式任务调度平台，其核心设计目标是开发迅速、学习简单、轻量级、易扩展。现已开放源代码并接入多家公司线上产品线，开箱即用。
+
+官网：https://www.xuxueli.com/xxl-job/
+
+文档：https://www.xuxueli.com/xxl-job/#%E3%80%8A%E5%88%86%E5%B8%83%E5%BC%8F%E4%BB%BB%E5%8A%A1%E8%B0%83%E5%BA%A6%E5%B9%B3%E5%8F%B0XXL-JOB%E3%80%8B
+
+XXL-JOB主要有调度中心、执行器、任务：
+
+![image-20230312212325580](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312212325580.png)
+
+- 调度中心
+
+负责管理调度信息，按照调度配置发出调度请求，自身不承担业务代码；
+
+主要职责为执行器管理、任务管理、监控运维、日志管理等
+
+- 任务执行器
+
+负责接收调度请求并执行任务逻辑；
+
+​    只要职责是注册服务、任务执行服务（接收到任务后会放入线程池中的任务队列）、执行结果上报、日志服务等
+
+**任务：**负责执行具体的业务处理。
+
+调度中心与执行器之间的工作流程如下：
+
+![image-20230312212423099](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312212423099.png)
+
+**执行流程：**
+
+​    1.任务执行器根据配置的调度中心的地址，自动注册到调度中心
+
+​	2.达到任务触发条件，调度中心下发任务
+
+​    3.执行器基于线程池执行任务，并把执行结果放入内存队列中、把执行日志写入日志文件中
+
+​    4.执行器消费内存队列中的执行结果，主动上报给调度中心
+
+​    5.当用户在调度中心查看任务日志，调度中心请求任务执行器，任务执行器读取任务日志文件并返回日志详情
+
+##### 4.7.1.3  搭建XXL-JOB
+
+###### 4.7.1.3.1 调度中心
+
+首先下载XXL-JOB
+
+GitHub：https://github.com/xuxueli/xxl-job
+
+码云：https://gitee.com/xuxueli0323/xxl-job
+
+项目使用2.3.1版本： https://github.com/xuxueli/xxl-job/releases/tag/2.3.1
+
+也可从课程资料目录获取，解压xxl-job-2.3.1.zip
+
+使用IDEA打开解压后的目录
+
+![image-20230312212840105](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312212840105.png)
+
+xxl-job-admin：调度中心
+
+xxl-job-core：公共依赖
+
+xxl-job-executor-samples：执行器Sample示例（选择合适的版本执行器，可直接使用）
+
+  ：xxl-job-executor-sample-springboot：Springboot版本，通过Springboot管理执行器，推荐这种方式；
+
+  ：xxl-job-executor-sample-frameless：无框架版本；
+
+doc :文档资料，包含数据库脚本
+
+![image-20230312213036054](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312213036054.png)
+
+
+
+![image-20230312213224992](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312213224992.png)
+
+
+
+执行sh /data/soft/restart.sh自动启动xxl-job
+
+访问：http://localhost:8088/xxl-job-admin/
+
+账号和密码：admin/123456
+
+如果无法使用虚拟机运行xxl-job可以在本机idea运行xxl-job调度中心。
+
+启动前注意修改配置文件
+
+![image-20230312213416887](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312213416887.png)
+
+
+
+###### 4.7.1.3.2 执行器
+
+下边配置执行器，执行器负责与调度中心通信接收调度中心发起的任务调度请求。
+
+1、首先在媒资管理模块的service工程添加依赖，在项目的父工程已约定了版本2.3.1
+
+```xml
+<dependency>
+    <groupId>com.xuxueli</groupId>
+    <artifactId>xxl-job-core</artifactId>
+</dependency>
+
+```
+
+![image-20230312214355944](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312214355944.png)
+
+2、在nacos下的media-service-dev.yaml下配置xxl-job
+
+```yaml
+xxl:
+  job:
+    admin: 
+      addresses: http://localhost:8088/xxl-job-admin
+    executor:
+      appname: media-process-service #执行器名称
+      address: 
+      ip: 
+      port: 9999  # 本机回调端口
+      logpath: /data/applogs/xxl-job/jobhandler
+      logretentiondays: 30
+    accessToken: default_token
+
+```
+
+![image-20230312214201419](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312214201419.png)
+
+
+
+注意配置中的appname这是执行器的应用名，稍后在调度中心配置执行器时要使用。
+
+3、配置xxl-job的执行器
+
+将示例工程下配置类拷贝到媒资管理的service工程下
+
+
+
+![image-20230312214637615](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312214637615.png)
+
+
+
+![image-20230312214616782](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312214616782.png)
+
+4、下边进入调度中心添加执行器
+
+![image-20230312214720775](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312214720775.png)
+
+点击新增，填写执行器信息，appname是前边在nacos中配置xxl信息时指定的执行器的应用名。
+
+![image-20230312214814369](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312214814369.png)
+
+
+
+
+
+![image-20230312214900380](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312214900380.png)
+
+
+
+到此完成媒资管理模块service工程配置xxl-job执行器，在xxl-job调度中心添加执行器，下边准备测试执行器与调度中心是否正常通信，因为接口工程依赖了service工程，所以启动媒资管理模块的接口工程。
+
+启动后观察日志，出现下边的日志表示执行器在调度中心注册成功
+
+```shell
+2023-03-12 21:59:56,779 INFO [main][XxlJobConfig.java:46] - >>>>>>>>>>> xxl-job config init.
+```
+
+![image-20230312220045896](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312220045896.png)
+
+###### 4.7.1.3.3 执行任务
+
+下边编写任务，任务类的编写方法参考示例工程，如下图：
+
+![image-20230312220227192](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312220227192.png)
+
+在service包下新建jobhandler存放任务类，下边参考示例工
+
+```java
+package com.xuecheng.media.service.jobhandler;
+
+import com.xxl.job.core.handler.annotation.XxlJob;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 任务处理类
+ * @date 2023/3/12 22:03
+ **/
+@Component
+public class SampleJob {
+    private static Logger logger = LoggerFactory.getLogger(SampleJob.class);
+    /**
+    * @description Bean模式
+    *
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/12 22:05
+    */
+    @XxlJob("testJob")
+    public void testJob(){
+        logger.debug(">>>>>>>>>>>job test");
+    }
+}
+
+```
+
+下边在调度中心添加任务，进入任务管理
+
+![image-20230312220740103](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312220740103.png)
+
+点击新增,天界任务信息
+
+![image-20230312220927925](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312220927925.png)
+
+调度类型选择Cron，并配置Cron表达式设置定时策略。
+
+Cron表达式是一个字符串，通过它可以定义调度策略，格式如下：
+
+{秒数} {分钟} {小时} {日期} {月份} {星期} {年份(可为空)}
+
+xxl-job提供图形界面去配置：
+
+![image-20230312220956739](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312220956739.png)
+
+一些例子如下：
+
+30 10 1 * * ? 每天1点10分30秒触发
+
+0/30 * * * * ? 每30秒触发一次
+
+\* 0/10 * * * ? 每10分钟触发一次
+
+运行模式有BEAN和GLUE，bean模式较常用就是在项目工程中编写执行器的任务代码，GLUE是将任务代码编写在调度中心。
+
+JobHandler任务方法名填写@XxlJob注解中的名称。
+
+![image-20230312221103628](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312221103628.png)
+
+添加成功，启动任务
+
+![image-20230312221152266](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312221152266.png)
+
+下边启动媒资管理的service工程，启动执行器。
+
+观察执行器方法的执行。
+
+```shell
+2023-03-12 22:12:21,247 DEBUG [xxl-job, JobThread-2-1678630323338][SampleJob.java:26] - >>>>>>>>>>>job test
+2023-03-12 22:12:24,228 DEBUG [xxl-job, JobThread-2-1678630323338][SampleJob.java:26] - >>>>>>>>>>>job test
+```
+
+如果要停止任务需要在调度中心操作
+
+![image-20230312221403081](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312221403081.png)
+
+任务跑一段时间注意清理日志
+
+![image-20230312221455901](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312221455901.png)
+
+###### 4.7.1.4 分片广播
+
+掌握了xxl-job的基本使用，下边思考如何进行分布式任务处理呢？如下图，我们会启动多个执行器组成一个集群，去执行任务。
+
+![image-20230312221606223](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312221606223.png)
+
+执行器在集群部署下调度中心有哪些调度策略呢？
+
+查看xxl-job官方文档，阅读高级配置相关的内容：
+
+```shell
+高级配置：
+    - 路由策略：当执行器集群部署时，提供丰富的路由策略，包括；
+        FIRST（第一个）：固定选择第一个机器；
+        LAST（最后一个）：固定选择最后一个机器；
+        ROUND（轮询）：；
+        RANDOM（随机）：随机选择在线的机器；
+        CONSISTENT_HASH（一致性HASH）：每个任务按照Hash算法固定选择某一台机器，且所有任务均匀散列在不同机器上。
+        LEAST_FREQUENTLY_USED（最不经常使用）：使用频率最低的机器优先被选举；
+        LEAST_RECENTLY_USED（最近最久未使用）：最久未使用的机器优先被选举；
+        FAILOVER（故障转移）：按照顺序依次进行心跳检测，第一个心跳检测成功的机器选定为目标执行器并发起调度；
+        BUSYOVER（忙碌转移）：按照顺序依次进行空闲检测，第一个空闲检测成功的机器选定为目标执行器并发起调度；
+        SHARDING_BROADCAST(分片广播)：广播触发对应集群中所有机器执行一次任务，同时系统自动传递分片参数；可根据分片参数开发分片任务；
+
+```
+
+第一个：每次调度选择集群中第一台执行器。
+
+最后一个：每次调度选择集群中最后一台执行器。
+
+轮询：按照顺序每次调度选择一台执行器去调度。
+
+随机：每次调度随机选择一台执行器去调度。
+
+CONSISTENT_HASH：按任务的hash值选择一台执行器去调度。
+
+其它策略请自行阅读文档。
+
+下边要重点说的是分片广播策略，分片是指是调度中心将集群中的执行器标上序号：0，1，2，3...，广播是指每次调度会向集群中所有执行器发送调度请求，请求中携带分片参数。
+
+如下图：
+
+![image-20230312221719599](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312221719599.png)
+
+
+
+
+
+每个执行器收到调度请求根据分片参数自行决定是否执行任务。
+
+另外xxl-job还支持动态分片，当执行器数量有变更时，调度中心会动态修改分片的数量。
+
+**作业分片适用哪些场景呢？**
+
+- •    分片任务场景：10个执行器的集群来处理10w条数据，每台机器只需要处理1w条数据，耗时降低10倍；
+- •    广播任务场景：广播执行器同时运行shell脚本、广播集群节点进行缓存更新等。
+
+所以，广播分片方式不仅可以充分发挥每个执行器的能力，并且根据分片参数可以控制任务是否执行，最终灵活控制了执行器集群分布式处理任务。
+
+**使用说明：**
+
+"分片广播" 和普通任务开发流程一致，不同之处在于可以获取分片参数进行分片业务处理。
+
+Java语言任务获取分片参数方式：
+
+BEAN、GLUE模式(Java)，可参考Sample示例执行器中的示例任务"ShardingJobHandler"
+
+```java
+@XxlJob("shardingJobHandler")
+public void shardingJobHandler() throws Exception {
+    // 分片序号，从0开始
+    int shardIndex = XxlJobHelper.getShardIndex();
+    // 分片总数
+    int shardTotal = XxlJobHelper.getShardTotal();
+    log.info("分片参数：当前分片序号 = {}, 总分片数 = {}", shardIndex, shardTotal);
+log.info("开始执行第"+shardIndex+"批任务");
+
+}
+```
+
+下边测试作业分片：
+
+1、定义作业分片的任务方法
+
+代码如上所示
+
+2、在调度中心添加任务
+
+![image-20230312222133712](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312222133712.png)
+
+高级配置说明：
+
+```shell
+- 子任务：每个任务都拥有一个唯一的任务ID(任务ID可以从任务列表获取)，当本任务执行结束并且执行成功时，将会触发子任务ID所对应的任务的一次主动调度，通过子任务可以实现一个任务执行完成去执行另一个任务。
+    - 调度过期策略：
+     - 忽略：调度过期后，忽略过期的任务，从当前时间开始重新计算下次触发时间；
+        - 立即执行一次：调度过期后，立即执行一次，并从当前时间开始重新计算下次触发时间；
+    - 阻塞处理策略：调度过于密集执行器来不及处理时的处理策略；
+        单机串行（默认）：调度请求进入单机执行器后，调度请求进入FIFO队列并以串行方式运行；
+        丢弃后续调度：调度请求进入单机执行器后，发现执行器存在运行的调度任务，本次请求将会被丢弃并标记为失败；
+        覆盖之前调度：调度请求进入单机执行器后，发现执行器存在运行的调度任务，将会终止运行中的调度任务并清空队列，然后运行本地调度任务；
+    - 任务超时时间：支持自定义任务超时时间，任务运行超时将会主动中断任务；
+    - 失败重试次数；支持自定义任务失败重试次数，当任务失败时将会按照预设的失败重试次数主动进行重试；
+
+
+```
+
+添加完成后,启动任务，观察日志
+
+启动两个服务,此流程在nacos小结有提到过.
+
+![image-20230312222418299](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312222418299.png)
+
+![image-20230312222540831](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312222540831.png)
+
+nacos开启本地优先
+
+![image-20230312222702570](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312222702570.png)
+
+启动两个任务,在xxl-job中检测到两个节点即可启动任务
+
+![image-20230312222950795](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312222950795.png)
+
+启动任务后,查看两个服务控制台的内容
+
+节点0
+
+```shell
+2023-03-12 22:31:20,225 INFO [xxl-job, JobThread-3-1678631430349][SampleJob.java:36] - 分片参数：当前分片序号 = 0, 总分片数 = 2
+2023-03-12 22:31:20,226 INFO [xxl-job, JobThread-3-1678631430349][SampleJob.java:37] - 开始执行第0批任务
+
+2023-03-12 22:31:25,237 INFO [xxl-job, JobThread-3-1678631430349][SampleJob.java:36] - 分片参数：当前分片序号 = 0, 总分片数 = 2
+2023-03-12 22:31:25,237 INFO [xxl-job, JobThread-3-1678631430349][SampleJob.java:37] - 开始执行第0批任务
+```
+
+
+
+节点1
+
+```java
+2023-03-12 22:30:40,422 INFO [xxl-job, JobThread-3-1678631430608][SampleJob.java:36] - 分片参数：当前分片序号 = 1, 总分片数 = 2
+2023-03-12 22:30:40,422 INFO [xxl-job, JobThread-3-1678631430608][SampleJob.java:37] - 开始执行第1批任务
+
+2023-03-12 22:30:45,567 INFO [xxl-job, JobThread-3-1678631430608][SampleJob.java:36] - 分片参数：当前分片序号 = 1, 总分片数 = 2
+2023-03-12 22:30:45,568 INFO [xxl-job, JobThread-3-1678631430608][SampleJob.java:37] - 开始执行第1批任务
+```
+
+
+
+#### 4.7.2 需求分析
+
+##### 4.7.2.1 作业分片方案
+
+掌握了xxl-job的作业分片调度方式，下边思考如何分布式去执行学成在线平台中的视频处理任务。
+
+任务添加成功后，对于要处理的任务会添加到待处理任务表中，现在启动多个执行器实例去查询这些待处理任务，此时如掌握了xxl-job的作业分片调度方式，下边思考如何分布式去执行学成在线平台中的视频处理任务。
+
+任务添加成功后，对于要处理的任务会添加到待处理任务表中，现在启动多个执行器实例去查询这些待处理任务，此时如何保证多个执行器不会重复执行任务？
+
+执行器收到调度请求后各自己查询属于自己的任务，这样就保证了执行器之间不会重复执行任务。
+
+xxl-job设计作业分片就是为了分布式执行任务，XXL-JOB并不直接提供数据处理的功能，它只会给执行器分配好分片序号并向执行器传递分片总数、分片序号这些参数，开发者需要自行处理分片项与真实数据的对应关系。
+
+下图表示了多个执行器获取视频处理任务的结构：
+
+![image-20230312223308636](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312223308636.png)
+
+每个执行器收到广播任务有两个参数：分片总数、分片序号。每个执行从数据表取任务时可以让任务id 模上 分片总数，如果等于分片序号则执行此任务。
+
+上边两个执行器实例那么分片总数为2，序号为0、1，从任务1开始，如下：
+
+1 % 2 = 1  执行器2执行
+
+2 % 2 = 0  执行器1执行
+
+3 % 2 = 1   执行器2执行
+
+以此类推.
+
+##### 4.7.2.2 保证任务不重复执行
+
+通过作业分片方案保证了执行器之间分配的任务不重复，另外如果同一个执行器在处理一个视频还没有完成，此时调度中心又一次请求调度，为了不重复处理同一个视频该怎么办？
+
+首先配置调度过期策略：
+
+查看文档如下：
+
+  \- 调度过期策略：
+     \- 忽略：调度过期后，忽略过期的任务，从当前时间开始重新计算下次触发时间；
+     \- 立即执行一次：调度过期后，立即执行一次，并从当前时间开始重新计算下次触发时间；
+   \- 阻塞处理策略：调度过于密集执行器来不及处理时的处理策略；
+
+这里我们选择忽略，如果立即执行一次可能会重复调度。
+
+![image-20230312223424481](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312223424481.png)
+
+其次，再看阻塞处理策略，阻塞处理策略就是当前执行器正在执行任务还没有结束时调度时间到达到，此时该如何处理。
+
+查看文档如下：
+     单机串行（默认）：调度请求进入单机执行器后，调度请求进入FIFO队列并以串行方式运行；
+     丢弃后续调度：调度请求进入单机执行器后，发现执行器存在运行的调度任务，本次请求将会被丢弃并标记为失败；
+     覆盖之前调度：调度请求进入单机执行器后，发现执行器存在运行的调度任务，将会终止运行中的调度任务并清空队列，然后运行本地调度任务；
+
+这里选择 丢弃后续调度，避免重复调度。
+
+最后，也就是要注意保证任务处理的幂等性，什么是任务的幂等性？任务的幂等性是指：对于数据的操作不论多少次，操作的结果始终是一致的。执行器接收调度请求去执行任务，要有办法去判断该任务是否处理完成，如果处理完则不再处理，即使重复调度处理相同的任务也不能重复处理相同的视频。
+
+什么是幂等性？
+
+它描述了一次和多次请求某一个资源对于资源本身应该具有同样的结果。
+
+幂等性是为了解决重复提交问题，比如：恶意刷单，重复支付
+
+等。
+
+解决幂等性常用的方案：
+
+1）数据库约束，比如：唯一索引，主键。
+
+2）乐观锁，常用于数据库，更新数据时根据乐观锁状态去更新。
+
+3）唯一序列号，操作传递一个唯一序列号，操作时判断与该序列号相等则执行。
+
+这里我们在数据库视频处理表中添加处理状态字段，视频处理完成更新状态为完成，执行视频处理前判断状态是否完成，如果完成则不再处理。
+
+##### 4.7.2.3 业务流程
+
+确定了分片方案，下边梳理整个视频上传及处理的业务流程
+
+![image-20230312223613813](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312223613813.png)
+
+上传视频成功向视频处理待处理表添加记录。
+
+![image-20230312223733375](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312223733375.png)
+
+
+
+1、任务调度中心广播作业分片。
+
+2、执行器收到广播作业分片，从数据库读取待处理任务。
+
+3、执行器根据任务内容从MinIO下载要处理的文件。
+
+4、执行器启动多线程去处理任务。
+
+5、任务处理完成，上传处理后的视频到MinIO。
+
+6、将更新任务处理结果，如果视频处理完成除了更新任务处理结果以外还要将文件的访问地址更新至任务处理表及文件表中，最后将任务完成记录写入历史表。
+
+下图是待处理任务表：
+
+![image-20230312223823236](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312223823236.png)
+
+完成任务历史表与结果与待处理任务相同。
+
+#### 4.7.3 查询待处理任务
+
+##### 4.7.3.1 添加待处理任务
+
+上传视频成功向视频处理待处理表添加记录，暂时只添加对avi视频的处理记录。
+
+根据MIME Type去判断是否是avi视频，下边列出部分MIME Type
+
+![image-20230312223920949](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230312223920949.png)
+
+avi视频的MIME Type是video/x-msvideo
+
+修改文件信息入库方法，添加对于后缀名得到的contentType判断,若为MP4或者image则进行url入库,如下：
+
+```java
+/**
+     * @param companyId           公司id
+     * @param uploadFileParamsDto 上传参数信息
+     * @param md5                 md5
+     * @param bucket              桶
+     * @param objectName          对象名
+     * @return com.xuecheng.media.model.po.MediaFiles
+     * @description 插入数据库
+     * @author: woldier
+     * @date: 2023/3/10 15:21
+     */
+    @Transactional
+    public MediaFiles insertMediaFile2DB(Long companyId, UploadFileParamsDto uploadFileParamsDto, String md5, String bucket, String objectName) {
+        /*添加数据库之前,根据md5查询该文件是否已经存在*/
+        MediaFiles files = mediaFilesMapper.selectById(md5);
+        if (files == null) {
+            /*生成数据库entity*/
+            MediaFiles mediaFiles = new MediaFiles();
+            BeanUtils.copyProperties(uploadFileParamsDto, mediaFiles);
+            //设置uploadFileParamsDto中不存在的部分
+            //设置id
+            mediaFiles.setId(md5);
+            //机构id
+            mediaFiles.setCompanyId(companyId);
+            //bucket
+            mediaFiles.setBucket(bucket);
+            //存储路径
+            mediaFiles.setFilePath(objectName);
+            //file_id
+            mediaFiles.setFileId(md5);
+            //url
+            //设置url字段需要判断当前的contentType是否为image或者mp4，只有这两种格式才能设置url直接预览
+            String mimeType = getMimeType(uploadFileParamsDto.getFilename());//获取文件content-type
+            if(mimeType.contains("image")||mimeType.contains("mp4"))//若为图片或者mp4格式视频设置url
+                mediaFiles.setUrl("/" + bucket + "/" + objectName);
+            //上传时间,更新时间自动设置
+            mediaFiles.setCreateDate(LocalDateTime.now());
+            mediaFiles.setCreateDate(LocalDateTime.now());
+            //文件状态
+            mediaFiles.setStatus("1");
+            //审核状态
+            mediaFiles.setAuditStatus(MediaAuditStatus.Approved.getCode());
+
+            int insert = mediaFilesMapper.insert(mediaFiles);
+
+            /*
+            * 若为avi格式，则插入转码任务
+            * */
+            getAopContextProxy().insertMediaProcessTask(md5, bucket, objectName, mimeType);
+
+
+            if (insert <= 0) {
+                log.debug("向数据库保存文件失败,bucket:{},objectName{}", fileBucket, objectName);
+                return null;
+            }
+            return mediaFiles;
+        }
+        return files;
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY) //设置传播级别为调用本方法的方法必须具有事务
+    public  void insertMediaProcessTask(String md5, String bucket, String objectName, String mimeType) {
+        if("video/x-msvideo".equals(mimeType)){
+            MediaProcess mediaProcess = new MediaProcess();
+            mediaProcess.setBucket(bucket); //设置桶
+            mediaProcess.setFilename(objectName); //设置对象名
+            mediaProcess.setFileId(md5); //设置md5
+            mediaProcess.setCreateDate(LocalDateTime.now());  //设置创建时间
+            mediaProcess.setStatus(MediaProcessStat.Pending.getCode()); //设置处理状态
+        }
+    }
+
+/**
+    * @description 获取代理对象
+    *
+    * @return com.xuecheng.media.service.MediaFileService
+    * @author: woldier
+    * @date: 2023/3/13 9:20
+    */
+    private MediaFileService getAopContextProxy(){
+        return (MediaFileService) AopContext.currentProxy();
+    }
+```
+
+
+
+##### 4.7.3.2 查询待处理任务
+
+如何保证查询到的待处理视频记录不重复？
+
+编写根据分片参数获取待处理任务的DAO方法，定义DAO接口如下：
+
+```java
+package com.xuecheng.media.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.xuecheng.media.model.po.MediaProcess;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
+
+/**
+ * <p>
+ *  Mapper 接口
+ * </p>
+ *
+ * @author woldier
+ */
+@Mapper
+public interface MediaProcessMapper extends BaseMapper<MediaProcess> {
+    /**
+    * @description 分片节点获取任务 
+    * @param shardTotal  节点总数
+     * @param shardindex  当前节点的id
+     * @param count  获取的条数
+    * @return java.util.List<com.xuecheng.media.model.po.MediaProcess> 
+    * @author: woldier 
+    * @date: 2023/3/13 11:05
+    */
+    @Select("SELECT t.* FROM media_process t WHERE t.id % #{shardTotal} = #{shardindex} and (t.status='1' or t.status='3') and t.fail_count < 3 limit #{count}")
+    List<MediaProcess> selectListByShardIndex(@Param("shardTotal") int shardTotal, @Param("shardindex") int shardindex, @Param("count") int count);
+}
+
+
+```
+
+定义Service接口，查询待处理
+
+```java
+package com.xuecheng.media.service;
+
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.xuecheng.media.model.po.MediaProcess;
+
+import java.util.List;
+
+/**
+ * <p>
+ *  服务类
+ * </p>
+ *
+ * @author itcast
+ * @since 2023-03-10
+ */
+public interface MediaProcessService extends IService<MediaProcess> {
+    /**
+     * @description 分片节点获取任务
+     * @param shardTotal  节点总数
+     * @param shardindex  当前节点的id
+     * @param count  获取的条数
+     * @return java.util.List<com.xuecheng.media.model.po.MediaProcess>
+     * @author: woldier
+     * @date: 2023/3/13 11:05
+     */
+    List<MediaProcess> selectListByShardIndex(int shardTotal, int shardindex, int count);
+}
+
+```
+
+service接口实现
+
+```java
+package com.xuecheng.media.service.impl;
+
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.xuecheng.media.mapper.MediaProcessMapper;
+import com.xuecheng.media.model.po.MediaProcess;
+import com.xuecheng.media.service.MediaProcessService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * <p>
+ *  服务实现类
+ * </p>
+ *
+ * @author itcast
+ */
+@Slf4j
+@Service
+public class MediaProcessServiceImpl extends ServiceImpl<MediaProcessMapper, MediaProcess> implements MediaProcessService {
+
+    /**
+     * @description 分片节点获取任务
+     * @param shardTotal  节点总数
+     * @param shardindex  当前节点的id
+     * @param count  获取的条数
+     * @return java.util.List<com.xuecheng.media.model.po.MediaProcess>
+     * @author: woldier
+     * @date: 2023/3/13 11:05
+     */
+    @Override
+    public List<MediaProcess> selectListByShardIndex(int shardTotal, int shardindex, int count) {
+        return baseMapper.selectListByShardIndex(shardTotal,shardindex,count);
+    }
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+#### 4.7.5 分布式锁与视频编码
+
+##### 4.7.5.1 什么是视频编码
+
+视频上传成功后需要对视频进行转码处理。
+
+什么是视频编码？查阅百度百科如下：
+
+![image-20230313141432516](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230313141432516.png)
+
+详情参考 ：[https://baike.baidu.com/item/%E8%A7%86%E9%A2%91%E7%BC%96%E7%A0%81/839038](https://baike.baidu.com/item/视频编码/839038)
+
+首先我们要分清文件格式和编码格式：
+
+文件格式：是指.mp4、.avi、.rmvb等 这些不同扩展名的视频文件的文件格式 ，视频文件的内容主要包括视频和音频，其文件格式是按照一 定的编码格式去编码，并且按照该文件所规定的封装格式将视频、音频、字幕等信息封装在一起，播放器会根据它们的封装格式去提取出编码，然后由播放器解码，最终播放音视频。
+
+音视频编码格式：通过音视频的压缩技术，将视频格式转换成另一种视频格式，通过视频编码实现流媒体的传输。比如：一个.avi的视频文件原来的编码是a，通过编码后编码格式变为b，音频原来为c，通过编码后变为d。
+
+音视频编码格式各类繁多，主要有几下几类：
+
+MPEG系列
+
+（由ISO[国际标准组织机构]下属的MPEG[运动图象专家组]开发 ）视频编码方面主要是Mpeg1（vcd用的就是它）、Mpeg2（DVD使用）、Mpeg4（的DVDRIP使用的都是它的变种，如：divx，xvid等）、Mpeg4 AVC（正热门）；音频编码方面主要是MPEG Audio Layer 1/2、MPEG Audio Layer 3（大名鼎鼎的mp3）、MPEG-2 AAC 、MPEG-4 AAC等等。注意：DVD音频没有采用Mpeg的。
+
+H.26X系列
+
+（由ITU[国际电传视讯联盟]主导，侧重网络传输，注意：只是视频编码）
+
+包括H.261、H.262、H.263、H.263+、H.263++、H.264（就是MPEG4 AVC-合作的结晶）
+
+目前最常用的编码标准是视频H.264，音频AAC。
+
+提问：
+
+H.264是编码格式还是文件格式？
+
+mp4是编码格式还是文件格式？
+
+##### 4.7.5.2 FFmpeg基本使用
+
+我们将视频录制完成后，使用视频编码软件对视频进行编码，本项目 使用FFmpeg对视频进行编码 。
+
+![image-20230313141536016](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230313141536016.png)
+
+FFmpeg被许多开源项目采用，QQ影音、暴风影音、VLC等。
+
+下载：FFmpeg https://www.ffmpeg.org/download.html#build-windows
+
+请从课程资料目录解压ffmpeg.zip,并将解压得到的exe文件加入环境变量。
+
+测试是否正常：cmd运行 ffmpeg -v
+
+
+
+安装成功，作下简单测试
+
+将一个.avi文件转成mp4、mp3、gif等。
+
+比如我们将nacos.avi文件转成mp4，运行如下命令：
+
+D:\soft\ffmpeg\ffmpeg.exe -i 1.avi 1.mp4
+
+可以将ffmpeg.exe配置到环境变量path中，进入视频目录直接运行：ffmpeg.exe -i 1.avi 1.mp4
+
+转成mp3：ffmpeg -i nacos.avi nacos.mp3
+
+转成gif：ffmpeg -i nacos.avi nacos.gif
+
+官方文档（英文）：http://ffmpeg.org/ffmpeg.html
+
+
+
+##### 4.7.5.3 视频处理工具类
+
+将课程资料目录中的util.zip解压，将解压出的工具类拷贝至base工程。
+
+![image-20230313144730929](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230313144730929.png)
+
+其中Mp4VideoUtil类是用于将视频转为mp4格式，是我们项目要使用的工具类。
+
+下边看下这个类的代码，并进行测试。
+
+我们要通过ffmpeg对视频转码，Java程序调用ffmpeg，使用java.lang.ProcessBuilder去完成，具体在Mp4VideoUtil类的63行，下边进行简单的测试，下边的代码运行本机安装的QQ软件。
+
+```java
+ProcessBuilder builder = new ProcessBuilder();
+builder.command("C:\\Program Files (x86)\\Tencent\\QQ\\Bin\\QQScLauncher.exe");
+//将标准输入流和错误输入流合并，通过标准输入流程读取信息
+builder.redirectErrorStream(true);
+Process p = builder.start();
+
+```
+
+对Mp4VideoUtil类需要学习使用方法，下边代码将一个avi视频转为mp4视频，如下：
+
+```java
+public static void main(String[] args) throws IOException {
+    //ffmpeg的路径
+    String ffmpeg_path = "D:\\soft\\ffmpeg\\ffmpeg.exe";//ffmpeg的安装位置
+    //源avi视频的路径
+    String video_path = "D:\\develop\\bigfile_test\\nacos01.avi";
+    //转换后mp4文件的名称
+    String mp4_name = "nacos01.mp4";
+    //转换后mp4文件的路径
+    String mp4_path = "D:\\develop\\bigfile_test\\nacos01.mp4";
+    //创建工具类对象
+    Mp4VideoUtil videoUtil = new Mp4VideoUtil(ffmpeg_path,video_path,mp4_name,mp4_path);
+    //开始视频转换，成功将返回success
+    String s = videoUtil.generateMp4();
+    System.out.println(s);
+}
+
+```
+
+
+
+##### 4.7.5.4 分布式锁
+
+为了避免多线程去争抢同一个任务可以使用synchronized同步锁去解决，如下代码：
+
+```java
+synchronized(锁对象){
+   执行任务...
+}
+
+```
+
+synchronized只能保证同一个虚拟机中多个线程去争抢锁。
+
+![image-20230313145121763](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230313145121763.png)
+
+如果是多个执行器分布式部署，并不能保证同一个视频只有一个执行器去处理。
+
+现在要实现分布式环境下所有虚拟机中的线程去同步执行就需要让多个虚拟机去共用一个锁，虚拟机可以分布式部署，锁也可以分布式部署，如下图：
+
+![image-20230313145140611](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230313145140611.png)
+
+虚拟机都去抢占同一个锁，锁是一个单独的程序提供加锁、解锁服务。
+
+该锁已不属于某个虚拟机，而是分布式部署，由多个虚拟机所共享，这种锁叫分布式锁。
+
+实现分布式锁的方案有很多，常用的如下：
+
+1、基于数据库实现分布锁
+
+利用数据库主键唯一性的特点，或利用数据库唯一索引、行级锁的特点，多个线程同时去更新相同的记录，谁更新成功谁就抢到锁。
+
+2、基于redis实现锁
+
+redis提供了分布式锁的实现方案，比如：SETNX、set nx、redisson等。
+
+拿SETNX举例说明，SETNX命令的工作过程是去set一个不存在的key，多个线程去设置同一个key只会有一个线程设置成功，设置成功的的线程拿到锁。
+
+3、使用zookeeper实现
+
+zookeeper是一个分布式协调服务，主要解决分布式程序之间的同步的问题。zookeeper的结构类似的文件目录，多线程向zookeeper创建一个子目录(节点)只会有一个创建成功，利用此特点可以实现分布式锁，谁创建该结点成功谁就获得锁。
+
+下边基于数据库方式实现分布锁，开始执行任务将任务执行状态更新为4表示任务执行中。
+
+下边的sql语句可以实现更新操作：
+
+```java
+update media_process m set m.status='4' where  m.id=?
+```
+
+如果是多个线程去执行该sql都将会执行成功，但需求是只能有一个线程抢到锁，所以此sql无法满足需求。
+
+下边使用乐观锁的方式实现更新操作：
+
+```sql
+update media_process m set m.status='4' where (m.status='1' or m.status='3') and m.fail_count<3 and m.id=?
+```
+
+多个线程同时执行上边的sql只会有一个线程执行成功。
+
+什么是乐观锁、悲观锁？
+
+synchronized是一种悲观锁，在执行被synchronized包裹的代码时需要首先获取锁，没有拿到锁则无法执行，是总悲观的认为别的线程会去抢，所以要悲观锁。
+
+乐观锁的思想是它不认为会有线程去争抢，尽管去执行，如果没有执行成功就再去重试。
+
+实现如下:
+
+1. 定义mapper
+
+```java
+public interface MediaProcessMapper extends BaseMapper<MediaProcess> {
+
+    /**
+     * 开启一个任务
+     * @param id 任务id
+     * @return 更新记录数
+     */
+    @Update("update media_process m set m.status='4' where (m.status='1' or m.status='3') and m.fail_count<3 and m.id=#{id}")
+    int startTask(@Param("id") long id);
+
+}
+
+```
+
+2. service方法
+
+```java
+/**
+     *  开启一个任务
+     * @param id 任务id
+     * @return true开启任务成功，false开启任务失败
+     */
+    public boolean startTask(long id);
+```
+
+
+
+3. service实现
+
+```java
+/**
+     *  开启一个任务
+     * @param id 任务id
+     * @return true开启任务成功，false开启任务失败
+     */
+    @Override
+    public boolean startTask(long id) {
+        if (baseMapper.startTask(id)>0) return true;
+        return false;
+    }
+```
+
+#### 4.7.6 更新业务状态
+
+任务处理完成需要更新任务处理结果，任务执行成功更新视频的URL、及任务处理结果，将待处理任务记录删除，同时向历史任务表添加记录。
+
+在Service接口添加方法
+
+任务处理完成需要更新任务处理结果，任务执行成功更新视频的URL、及任务处理结果，将待处理任务记录删除，同时向历史任务表添加记录。
+
+在Service接口添加方法
+
+```java
+/**
+    * @description 保存任务结果
+    * @param taskId 任务id
+     * @param status 状态
+     * @param fileId 文件id
+     * @param url 设置url
+     * @param errorMsg  错误信息
+    * @return void
+    * @author: woldier 
+    * @date: 2023/3/13 11:12
+    */
+    void saveProcessFinishStatus(Long taskId,String status,String fileId,String url,String errorMsg);
+```
+
+service实现方法如下
+
+```java
+ /**
+     * @description 保存任务结果
+     * @param taskId 任务id/
+     * @param status 状态
+     * @param fileId 文件id
+     * @param url 设置url
+     * @param errorMsg  错误信息
+     * @return void
+     * @author: woldier
+     * @date: 2023/3/13 11:12
+     */
+    @Override
+    @Transactional
+    public void saveProcessFinishStatus(Long taskId, String status, String fileId, String url, String errorMsg) {
+        /*
+        * 任务处理完成需要更新任务处理结果，
+        * 任务执行成功更新视频的URL、及任务处理结果，
+        * 将待处理任务记录删除，
+        * 同时向历史任务表添加记录
+        * */
+        MediaProcess mediaProcess = this.getById(taskId);
+        if(mediaProcess==null) return; //查询到数据库未空,直接返回
+        if(status.equals(MediaProcessStat.SUCCESS.getCode())){//如果执行成功
+            //从数据库获取数据
+
+            //设置状态
+            mediaProcess.setStatus(MediaProcessStat.SUCCESS.getCode());
+            //设置完成时间
+            mediaProcess.setFinishDate(LocalDateTime.now());
+            //从MediaProcess表删除,并且把数据插入到MediaProcessHistory
+            this.removeById(taskId);
+            //创建插入到MediaProcessHistory的对象
+            MediaProcessHistory mediaProcessHistory = new MediaProcessHistory();
+            BeanUtils.copyProperties(mediaProcess,mediaProcessHistory);
+            mediaProcessHistoryService.save(mediaProcessHistory);
+            //在MediaFile表中设置Url
+            MediaFiles mediaFiles = new MediaFiles();
+            mediaFiles.setId(fileId);
+            mediaFiles.setUrl(url);
+            mediaFileService.updateById(mediaFiles);
+
+
+        }else if (status.equals(MediaProcessStat.FAILED.getCode())){ //执行失败
+            //执行失败,设置状态未失败,设置错误信息,并且将失败次数加1
+            baseMapper.updateFailInfo(taskId,MediaProcessStat.FAILED.getCode(), errorMsg);
+        }
+
+    }
+```
+
+
+
+#### 4.7.7 视频处理
+
+视频采用并发处理，每个视频使用一个线程去处理，每次处理的视频数量不要超过cpu核心数,所有视频处理完成结束本次执行，为防止代码异常出现无限期等待则添加超时设置，到达超时时间还没有处理完成仍结束任务。
+
+定义任务类VideoTask 如下
+
+```java
+package com.xuecheng.media.service.jobhandler;
+
+import com.j256.simplemagic.ContentInfo;
+import com.j256.simplemagic.ContentInfoUtil;
+import com.xuecheng.base.utils.Mp4VideoUtil;
+import com.xuecheng.media.model.dto.MediaProcessStat;
+import com.xuecheng.media.model.po.MediaProcess;
+import com.xuecheng.media.service.MediaFileService;
+import com.xuecheng.media.service.MediaProcessService;
+import com.xxl.job.core.context.XxlJobHelper;
+import com.xxl.job.core.handler.annotation.XxlJob;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+
+import java.io.File;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 任务处理类
+ * @date 2023/3/12 22:03
+ **/
+@Component
+@RequiredArgsConstructor
+public class SampleJob {
+    private final MediaFileService mediaFileService;
+    private final MediaProcessService mediaProcessService;
+    private static Logger logger = LoggerFactory.getLogger(SampleJob.class);
+
+    @Value("${videoprocess.ffmpegpath}")
+    private String ffmpegpath;
+
+    /**
+     * @return void
+     * @description 分片模式
+     * @author: woldier
+     * @date: 2023/3/12 22:05
+     */
+    @XxlJob("videoJobHandler")
+    public void videoJobHandler() throws Exception {
+        /*
+         * 1. 从数据库获取任务
+         * 2. 从minio下载相应的文件
+         * 3. 开始转码
+         * 4. 向数据库保存操作结果
+         * */
+        // 分片序号，从0开始
+        int shardIndex = XxlJobHelper.getShardIndex();
+        // 分片总数
+        int shardTotal = XxlJobHelper.getShardTotal();
+        //取出cpu核心数作为一次处理数据的条数
+        int processors = Runtime.getRuntime().availableProcessors();
+        //从数据库取出数据
+        List<MediaProcess> mediaProcessList = mediaProcessService.selectListByShardIndex(shardTotal, shardIndex, processors);
+        //如果没有数据,直接退出
+        if (mediaProcessList.isEmpty()) return;
+        int size = mediaProcessList.size();
+        //启动size个线程的线程池
+        ExecutorService threadPool = Executors.newFixedThreadPool(size);
+        //计数器
+        CountDownLatch countDownLatch = new CountDownLatch(size);
+
+        //开启线程池处理任务
+        mediaProcessList.forEach(
+                mediaProcess -> {
+                    threadPool.execute(() -> {
+                                /*
+                                 * 1.获取id
+                                 * 2.抢占任务
+                                 * 3.下载文件
+                                 * 4.处理文件
+                                 * */
+                                Long id = mediaProcess.getId();
+                                //抢占任务不成功直接返回
+                                if (!mediaProcessService.startTask(id)) {
+                                    logger.debug("抢占任务不成功");
+                                    return;
+                                }
+                                //从minio下载文件
+                                File minIODownLoad = mediaFileService.minIODownLoad(mediaProcess.getBucket(), mediaProcess.getFilename());
+                                if (minIODownLoad == null) {
+                                    logger.debug("下载文件失败");
+                                    mediaProcessService.saveProcessFinishStatus(mediaProcess.getId(), MediaProcessStat.FAILED.getCode(), mediaProcess.getFileId(), null, "文件下载失败");
+                                    return;
+
+                                }
+                                //开始处理视频
+                                File mp4File = null;
+                                try {
+                                    mp4File = File.createTempFile("mp4", ".mp4");
+                                } catch (Exception e) {
+                                    logger.debug("创建转码后文件失败");
+                                    mediaProcessService.saveProcessFinishStatus(mediaProcess.getId(), MediaProcessStat.FAILED.getCode(), mediaProcess.getFileId(), null, "转码后创建文件失败");
+                                    return;
+                                }
+                                //视频处理结果
+                                String result = "";
+                                try {
+                                    //开始处理视频
+                                    Mp4VideoUtil videoUtil = new Mp4VideoUtil(ffmpegpath, minIODownLoad.getAbsolutePath(), mp4File.getName(), mp4File.getAbsolutePath());
+                                    //开始视频转换，成功将返回success
+                                    result = videoUtil.generateMp4();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                    logger.error("处理视频文件:{},出错:{}", mediaProcess.getFilePath(), e.getMessage());
+                                    mediaProcessService.saveProcessFinishStatus(mediaProcess.getId(), MediaProcessStat.FAILED.getCode(), mediaProcess.getFileId(), null, "处理视频文件出错");
+                                }
+                                if (!result.equals("success")) {
+                                    //记录错误信息
+                                    logger.error("处理视频失败,视频地址:{},错误信息:{}", mediaProcess.getBucket() + mediaProcess.getFilename(), result);
+
+                                    mediaProcessService.saveProcessFinishStatus(mediaProcess.getId(), MediaProcessStat.FAILED.getCode(), mediaProcess.getFileId(), null, result);
+
+                                }
+                                //上传到minio
+                                String objectName = getFilePath(mediaProcess.getFileId(), ".mp4");
+                                if (!mediaFileService.minIOUpload(mp4File.getPath(), getMimeType(objectName), mediaProcess.getBucket(), objectName)) {
+                                    logger.error("上传文件出错");
+                                    mediaProcessService.saveProcessFinishStatus(mediaProcess.getId(), MediaProcessStat.FAILED.getCode(), mediaProcess.getFileId(), null, result);
+                                }
+                                //设置处理结果
+                                mediaProcessService.saveProcessFinishStatus(mediaProcess.getId(), MediaProcessStat.SUCCESS.getCode(), mediaProcess.getFileId(), objectName, result);
+                                minIODownLoad.delete();
+                                mp4File.delete();
+                                countDownLatch.countDown();
+                            }
+                    );
+
+                }
+
+        );
+        //等待,给一个充裕的超时时间,防止无限等待，到达超时时间还没有处理完成则结束任务
+        countDownLatch.await(30, TimeUnit.MINUTES);
+    }
+
+
+    /**
+     * @param fileMd5 原文件md5
+     * @param fileExt
+     * @return java.lang.String
+     * @description 获取对象存储路径
+     * @author: woldier
+     * @date: 2023/3/15 22:13
+     */
+    private String getFilePath(String fileMd5, String fileExt) {
+        return fileMd5.substring(0, 1) + "/" + fileMd5.substring(1, 2) + "/" + fileMd5 + "/" + fileMd5 + fileExt;
+    }
+
+    /**
+     * @param fileName 带后缀文件名 若为空 返回 MediaType.APPLICATION_OCTET_STREAM_VALUE;
+     * @return java.lang.String
+     * @description 根据文件后缀名获取MimeType
+     * @author: woldier
+     * @date: 2023/3/10 13:55
+     */
+    private String getMimeType(String fileName) {
+        if (fileName == null) fileName = "";
+        ContentInfo contentInfo = ContentInfoUtil.findExtensionMatch(fileName);
+        String mimeType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        if (contentInfo != null) mimeType = contentInfo.getMimeType();
+        return mimeType;
+    }
+
+}
+
+```
+
+### 4.7.8 测试
+
+##### 4.7.8.1 基本测试
+
+进入xxl-job调度中心添加执行器和视频处理任务
+
+在xxl-job配置任务调度策略：
+
+1）配置阻塞处理策略为：丢弃后续调度
+
+2）配置视频处理调度时间间隔不用根据视频处理时间去确定，可以配置的小一些，如：5分钟，即使到达调度时间如果视频没有处理完会丢弃调度请求。
+
+配置完成开始测试视频处理：
+
+1、首先上传至少4个视频，非mp4格式。
+
+2、在xxl-job启动视频处理任务
+
+3、观察媒资管理服务后台日志
+
+##### 4.7.8.2 失败测试
+
+1、先停止调度中心的视频处理任务。
+
+2、上传视频，手动修改待处理任务表中file_path字段为一个不存在的文件地址
+
+3、启动任务
+
+观察任务处理失败后是否会重试，并记录失败次数。
+
+##### 4.7.8.3 抢占式任务测试
+
+1、修改调度中心中视频处理任务的阻塞处理策略为“覆盖之间的调度”
+
+![image-20230316145716941](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316145716941.png)
+
+2、在抢占任务代码处打断点并选择支持多线程方式
+
+![image-20230316145905539](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316145905539.png)
+
+3、在抢占任务代码处的下边两行代码分别打上断点，避免观察时代码继续执行。
+
+
+
+4、启动任务
+
+此时多个线程执行都停留在断点处
+
+![image-20230316145945411](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316145945411.png)
+
+依次放行，观察同一个任务只会被一个线程抢占成功。
+
+![image-20230316150001899](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316150001899.png)
+
+
+
+![image-20230316150010883](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316150010883.png)
+
+#### 4.7.9 其他问题
+
+##### 4.7.9.1 任务补偿机制
+
+如果有线程抢占了某个视频的处理任务，如果线程处理过程中挂掉了，该视频的状态将会一直是处理中，其它线程将无法处理，这个问题需要用补偿机制。
+
+单独启动一个任务找到待处理任务表中超过执行期限但仍在处理中的任务，将任务的状态改为执行失败。
+
+任务执行期限是处理一个视频的最大时间，比如定为30分钟，通过任务的启动时间去判断任务是否超过执行期限。
+
+大家思考这个sql该如何实现？
+
+where 查询中判断开始时间是否和当前时间差30分钟
+
+大家尝试自己实现此任务补偿机制。
+
+##### 4.7.9.2 达到最大失败次数
+
+当任务达到最大失败次数时一般就说明程序处理此视频存在问题，这种情况就需要人工处理，在页面上会提示失败的信息，人工可手动执行该视频进行处理，或通过其它转码工具进行视频转码，转码后直接上传mp4视频。
+
+
+
+
+
+##### 4.7.9.3 分块文件清理问题
+
+上传一个文件进行分块上传，上传一半不传了，之前上传到minio的分块文件要清理吗？怎么做的？
+
+1、在数据库中有一张文件表记录minio中存储的文件信息。
+
+2、文件开始上传时会写入文件表，状态为上传中，上传完成会更新状态为上传完成。
+
+3、当一个文件传了一半不再上传了说明该文件没有上传完成，会有定时任务去查询文件表中的记录，如果文件未上传完成则删除minio中没有上传成功的文件目录。
+
+
+
+
+
+### 4.8 绑定媒资
+
+#### 4.8.1 需求分析
+
+##### 4.8.1.1 业务流程
+
+到目前为止，媒资管理已完成文件上传、视频处理、我的媒资功能等基本功能，其它模块可以使用媒资文件，本节要讲解课程计划绑定媒资文件。
+
+如何将课程计划绑定媒资呢？
+
+首先进入课程计划界面，然后选择要绑定的视频进行绑定即可。
+
+具体的业务流程如下：
+
+1.教育机构用户进入课程管理页面并编辑某一个课程，在"课程大纲"标签页的某一小节后可点击”添加视频“。
+
+![image-20230316150712652](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316150712652.png)
+
+2.弹出添加视频对话框，可通过视频关键字搜索已审核通过的视频媒资。
+
+![image-20230316150722659](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316150722659.png)
+
+3.选择视频媒资，点击提交按钮，完成课程计划绑定媒资流程。
+
+![image-20230316150735132](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316150735132.png)
+
+课程计划关联视频后如下图：
+
+![image-20230316150851255](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316150851255.png)
+
+点击已经绑定的视频名称即可解除绑定。
+
+![image-20230316150908208](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316150908208.png)
+
+##### 4.8.1.2 数据模型
+
+课程计划绑定媒资文件后存储至课程计划绑定媒资表
+
+![image-20230316151008057](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316151008057.png)
+
+#### 4.8.2 接口定义
+
+根据业务流程，用户进入课程计划列表，首先确定向哪个课程计划添加视频，点
+
+击”添加视频“后用户选择视频，选择视频，点击提交，前端以json格式请求以下参数：
+
+提交媒资文件id、文件名称、教学计划id
+
+示例如下：
+
+```java
+@ApiOperation("课程计划绑定媒资")
+    @PostMapping("/teachplan/association/media")
+    public void associationMedia(@RequestBody @Validated BindTeachplanMediaDto dto) throws XueChengPlusException {
+        teachplanService.association(dto);
+    }
+```
+
+
+
+#### 4.8.3 接口开发
+
+##### 4.8.3.1 DAO开发
+
+##### 4.8.3.2 Service开发
+
+```java
+ /**
+    * @description 媒资与课程资源进行绑定
+    * @param dto
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/16 15:23
+    */
+    void association(BindTeachplanMediaDto dto) throws XueChengPlusException;
+
+```
+
+```java
+ /**
+     * @description 媒资与课程资源进行绑定
+     * @param dto
+     * @return void
+     * @author: woldier
+     * @date: 2023/3/16 15:23
+     */
+    @Override
+    @Transactional
+    public void association(BindTeachplanMediaDto dto) throws XueChengPlusException {
+        /*
+        * 1.查询课程计划
+        * 2.如果不是2级，报错
+        * 3.查询
+        * */
+        Teachplan teachplan = this.getById(dto.getTeachplanId());
+        if(teachplan==null) XueChengPlusException.cast("未查询到相应的课程计划");
+        if(!Objects.equals(teachplan.getGrade(), TeachplanGrade.GRADE2.getGrade())) XueChengPlusException.cast("非小节目录不允许绑定媒资");
+        /*查询media 看该媒资文件是否存在*/
+        LambdaQueryWrapper<TeachplanMedia> q1 = new LambdaQueryWrapper<>();
+        q1.eq(TeachplanMedia::getTeachplanId,dto.getTeachplanId());
+        TeachplanMedia one = teachplanMediaService.getOne(q1);
+        if(one== null) { //空,新插入数据
+            TeachplanMedia teachplanMedia = new TeachplanMedia();
+            teachplanMedia.setTeachplanId(dto.getTeachplanId());
+            teachplanMedia.setMediaId(dto.getMediaId());
+            teachplanMedia.setMediaFilename(dto.getFileName());
+            teachplanMedia.setCourseId(teachplan.getCourseId());
+            teachplanMedia.setCreateDate(LocalDateTime.now());
+            teachplanMediaService.save(teachplanMedia);
+        }
+        else { //非空新增数据
+            one.setMediaId(dto.getMediaId());
+            one.setMediaFilename(dto.getFileName());
+            teachplanMediaService.updateById(one);
+        }
+
+    }
+```
+
+
+
+##### 4.8.3.3 接口代码完善
+
+```java
+@ApiOperation("课程计划绑定媒资")
+    @PostMapping("/teachplan/association/media")
+    public void associationMedia(@RequestBody @Validated BindTeachplanMediaDto dto) throws XueChengPlusException {
+        teachplanService.association(dto);
+    }
+```
+
+
+
+#### 4.8.4 接口测试
+
+
+
+#### 4.8.5 实战
+
+根据接口定义实现解除绑定功能。
+
+点击已经绑定的视频名称即可解除绑定。
+
+![image-20230316155556237](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316155556237.png)
+
+接口定义如下：
+
+```http
+### 课程计划接触视频绑定
+DELETE {{media_host}}/media/teachplan/association/media/{teachPlanId}/{mediaId}
+
+```
+
+```java
+@ApiOperation("课程计划绑定媒资")
+    @DeleteMapping("/teachplan/association/media/{teachPlanId}/{mediaId}")
+    public void deleteAssociationMedia(@PathVariable("teachPlanId") Long teachPlanId,@PathVariable("mediaId") Str mediaId) throws XueChengPlusException {
+        teachplanService.deleteAssociation(teachPlanId,mediaId);
+    }
+```
+
+
+
+```java
+ /**
+    * @description 删除课程计划与媒资的绑定信息
+    * @param teachPlanId 课程计划id
+     * @param mediaId  媒资信息id
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/16 16:00
+    */
+    void deleteAssociation(Long teachPlanId, Long mediaId) throws XueChengPlusException;
+```
+
+```java
+ /**
+     * @description 删除课程计划与媒资的绑定信息
+     * @param teachPlanId 课程计划id
+     * @param mediaId  媒资信息id
+     * @return void
+     * @author: woldier
+     * @date: 2023/3/16 16:00
+     */
+    @Override
+    public void deleteAssociation(Long teachPlanId, Long mediaId) throws XueChengPlusException {
+        boolean b = teachplanMediaService.removeById(teachPlanId);
+        if(!b) XueChengPlusException.cast("删除操作不成功");
+    }
+```
 
 
 
