@@ -128,7 +128,7 @@ public class SampleJob {
                                     mediaProcessService.saveProcessFinishStatus(mediaProcess.getId(), MediaProcessStat.FAILED.getCode(), mediaProcess.getFileId(), null, result);
                                 }
                                 //设置处理结果
-                                mediaProcessService.saveProcessFinishStatus(mediaProcess.getId(), MediaProcessStat.SUCCESS.getCode(), mediaProcess.getFileId(), objectName, result);
+                                mediaProcessService.saveProcessFinishStatus(mediaProcess.getId(), MediaProcessStat.SUCCESS.getCode(), mediaProcess.getFileId(), "/"+mediaProcess.getBucket() + "/"+objectName, result);
                                 minIODownLoad.delete();
                                 mp4File.delete();
                                 countDownLatch.countDown();
