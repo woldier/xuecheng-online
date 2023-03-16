@@ -94,6 +94,7 @@ public class MediaProcessServiceImpl extends ServiceImpl<MediaProcessMapper, Med
             //创建插入到MediaProcessHistory的对象
             MediaProcessHistory mediaProcessHistory = new MediaProcessHistory();
             BeanUtils.copyProperties(mediaProcess,mediaProcessHistory);
+            mediaProcessHistory.setUrl(url);
             mediaProcessHistoryService.save(mediaProcessHistory);
             //在MediaFile表中设置Url
             MediaFiles mediaFiles = new MediaFiles();
