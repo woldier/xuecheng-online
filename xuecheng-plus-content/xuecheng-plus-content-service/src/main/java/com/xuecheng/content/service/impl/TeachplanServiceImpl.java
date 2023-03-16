@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.content.mapper.TeachplanMapper;
+import com.xuecheng.content.model.dto.BindTeachplanMediaDto;
 import com.xuecheng.content.model.dto.SaveTeachplanDto;
 import com.xuecheng.content.model.dto.TeachplanDto;
+import com.xuecheng.content.model.dto.TeachplanGrade;
 import com.xuecheng.content.model.po.Teachplan;
 import com.xuecheng.content.model.po.TeachplanMedia;
 import com.xuecheng.content.service.TeachplanMediaService;
@@ -17,7 +19,9 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -186,6 +190,45 @@ public class TeachplanServiceImpl extends ServiceImpl<TeachplanMapper, Teachplan
         teachplan1.setOrderby(orderby);
         this.updateById(teachplan);
         this.updateById(teachplan1);
+
+    }
+
+    /**
+     * @description 媒资与课程资源进行绑定
+     * @param dto
+     * @return void
+     * @author: woldier
+     * @date: 2023/3/16 15:23
+     */
+    @Override
+    @Transactional
+    public void association(BindTeachplanMediaDto dto) throws XueChengPlusException {
+        /*
+        * 1.查询课程计划
+        * 2.如果不是2级，报错
+        * 3.查询
+        * */
+        Teachplan teachplan = this.getById(dto.getTeachplanId());
+        if(teachplan==null) XueChengPlusException.cast("未查询到相应的课程计划");
+        if(!Objects.equals(teachplan.getGrade(), TeachplanGrade.GRADE2.getGrade())) XueChengPlusException.cast("非小节目录不允许绑定媒资");
+        /*查询media 看该媒资文件是否存在*/
+        LambdaQueryWrapper<TeachplanMedia> q1 = new LambdaQueryWrapper<>();
+        q1.eq(TeachplanMedia::getTeachplanId,dto.getTeachplanId());
+        TeachplanMedia one = teachplanMediaService.getOne(q1);
+        if(one== null) { //空,新插入数据
+            TeachplanMedia teachplanMedia = new TeachplanMedia();
+            teachplanMedia.setTeachplanId(dto.getTeachplanId());
+            teachplanMedia.setMediaId(dto.getMediaId());
+            teachplanMedia.setMediaFilename(dto.getFileName());
+            teachplanMedia.setCourseId(teachplan.getCourseId());
+            teachplanMedia.setCreateDate(LocalDateTime.now());
+            teachplanMediaService.save(teachplanMedia);
+        }
+        else { //非空新增数据
+            one.setMediaId(dto.getMediaId());
+            one.setMediaFilename(dto.getFileName());
+            teachplanMediaService.updateById(one);
+        }
 
     }
 

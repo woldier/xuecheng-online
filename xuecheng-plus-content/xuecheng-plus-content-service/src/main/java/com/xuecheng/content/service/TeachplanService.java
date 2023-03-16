@@ -2,6 +2,7 @@ package com.xuecheng.content.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.model.dto.BindTeachplanMediaDto;
 import com.xuecheng.content.model.dto.SaveTeachplanDto;
 import com.xuecheng.content.model.dto.TeachplanDto;
 import com.xuecheng.content.model.po.Teachplan;
@@ -55,5 +56,14 @@ public interface TeachplanService extends IService<Teachplan> {
     * @date: 2023/3/7 22:29
     */
     void move(Long id,Boolean moveDown) throws XueChengPlusException;
+
+    /**
+    * @description 媒资与课程资源进行绑定
+    * @param dto
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/16 15:23
+    */
+    void association(BindTeachplanMediaDto dto) throws XueChengPlusException;
 
 }
