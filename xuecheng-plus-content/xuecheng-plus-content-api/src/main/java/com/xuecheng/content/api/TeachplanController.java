@@ -1,6 +1,7 @@
 package com.xuecheng.content.api;
 
 import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.model.dto.BindTeachplanMediaDto;
 import com.xuecheng.content.model.dto.SaveTeachplanDto;
 import com.xuecheng.content.model.dto.TeachplanDto;
 import com.xuecheng.content.model.po.Teachplan;
@@ -9,6 +10,7 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -89,5 +91,11 @@ public class TeachplanController {
     @PostMapping("/teachplan/moveup/{id}")
     public void moveUp(@PathVariable Long id) throws XueChengPlusException {
         teachplanService.move(id,Boolean.FALSE);
+    }
+
+    @ApiOperation("课程计划绑定媒资")
+    @PostMapping("/teachplan/association/media")
+    public void associationMedia(@RequestBody @Validated BindTeachplanMediaDto dto) throws XueChengPlusException {
+        teachplanService.association(dto);
     }
 }
