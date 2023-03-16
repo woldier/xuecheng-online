@@ -7,6 +7,7 @@ import com.xuecheng.content.model.dto.SaveTeachplanDto;
 import com.xuecheng.content.model.dto.TeachplanDto;
 import com.xuecheng.content.model.po.Teachplan;
 
+
 import java.util.List;
 
 /**
@@ -65,5 +66,15 @@ public interface TeachplanService extends IService<Teachplan> {
     * @date: 2023/3/16 15:23
     */
     void association(BindTeachplanMediaDto dto) throws XueChengPlusException;
+
+    /**
+    * @description 删除课程计划与媒资的绑定信息
+    * @param teachPlanId 课程计划id
+     * @param mediaId  媒资信息id
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/16 16:00
+    */
+    void deleteAssociation(Long teachPlanId, Long mediaId) throws XueChengPlusException;
 
 }
