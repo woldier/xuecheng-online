@@ -11446,7 +11446,7 @@ DELETE {{media_host}}/media/teachplan/association/media/{teachPlanId}/{mediaId}
 ```java
 @ApiOperation("课程计划绑定媒资")
     @DeleteMapping("/teachplan/association/media/{teachPlanId}/{mediaId}")
-    public void deleteAssociationMedia(@PathVariable("teachPlanId") Long teachPlanId,@PathVariable("mediaId") Str mediaId) throws XueChengPlusException {
+    public void deleteAssociationMedia(@PathVariable("teachPlanId") Long teachPlanId,@PathVariable("mediaId") String mediaId) throws XueChengPlusException {
         teachplanService.deleteAssociation(teachPlanId,mediaId);
     }
 ```
@@ -11480,6 +11480,915 @@ DELETE {{media_host}}/media/teachplan/association/media/{teachPlanId}/{mediaId}
         if(!b) XueChengPlusException.cast("删除操作不成功");
     }
 ```
+
+## 5. 课程发布
+
+### 5.1 模块总览
+
+#### 5.1.1 模块介绍
+
+课程信息编辑完毕即可发布课程，发布课程相当于一个确认操作，课程发布后学习者在网站可以搜索到课程，然后查看课程的详细信息，进一步选课、支付、在线学习。
+
+下边是课程编辑与发布的整体流程
+
+![image-20230316162420849](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316162420849.png)
+
+为了课程内容没有违规信息、课程内容安排合理，在课程发布之前运营方会进行课程审核，审核通过后课程方可发布。
+
+作为课程制作方即教学机构，在课程发布前通过课程预览功能可以看到课程发布后的效果，哪里的课程信息存在问题方便查看，及时修改。
+
+下图是课程预览的效果图，也是课程正式发布后的课程详情界面：
+
+![image-20230316162446473](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316162446473.png)
+
+教学机构确认课程内容无误，提交审核，平台运营人员对课程内容审核，审核通过后教学机构人员发布课程成功。
+
+课程发布模块共包括三块功能：
+
+1、课程预览
+
+2、课程审核
+
+3、课程发布
+
+#### 5.1.2 业务流程
+
+##### 5.1.2.1 课程预览
+
+1.**教育机构用户**在课程管理中可对该机构内所管理的课程进行检索
+
+![image-20230316162816281](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316162816281.png)
+
+2.点击某课程数据后的预览链接，即可对该课程进行预览，可以看到发布后的详情页面效果。
+
+下图是课程详情首页，显示了课程的基本信息。
+
+![image-20230316162832531](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316162832531.png)
+
+点击课程目录，显示课程计划，通过此界面去核实课程计划的信息是否存在问题。
+
+![image-20230316163256402](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316163256402.png)
+
+点击课程目录中的具体章节，查看视频播放是否正常
+
+![image-20230316163309350](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316163309350.png)
+
+
+
+##### 5.1.2.2 课程审核
+
+教学机构提交课程审核后，平台运营人员登录运营平台进行课程审核，课程审核包括程序自动审核和人工审核，程序会审核内容的完整性，人员通过课程预览进行审核。
+
+流程如下：
+
+![image-20230316163336974](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316163336974.png)
+
+1、首先查询待审核的记录。
+
+2、课程审核
+
+具体审核的过程与课程预览的过程类似，运营人员查看课程信息、课程视频等内容。
+
+如果存在问题则审核不通过，并附上审核不通过的原因供教学机构人员查看。
+
+如果课程内容没有违规信息且课程内容全面则审核通过。
+
+课程审核通过后教学机构发布课程成功。
+
+
+
+##### 5.1.2.3 课程发布
+
+1.**教育机构用户**在课程管理中可对机构内课程进行检索。
+
+![image-20230316163408088](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316163408088.png)
+
+2.点击某课程数据后的 发布 链接（审核状态为通过），即可对该课程进行发布。
+
+![image-20230316163424944](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316163424944.png)
+
+3、课程发布后可通过课程搜索查询到课程信息，并查看课程的详细信息。
+
+![image-20230316163452636](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316163452636.png)
+
+
+
+### 5.2 课程预览
+
+#### 5.2.1 需求分析
+
+课程预览就是把课程的相关信息进行整合，在课程详情界面进行展示，通过课程预览页面查看信息是否存在问题。
+
+![image-20230316163546072](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316163546072.png)
+
+下图是课程预览的数据来源：
+
+![image-20230316163559815](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316163559815.png)
+
+在课程预览页面点击"视频播放图片"打开视频播放页面，通过视频播放页面查看课程计划对应的视频是否存在问题。
+
+![image-20230316164018006](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316164018006.png)
+
+课程预览的效果与最终课程发布后查看到的效果是一致的，所以课程预览时会通过网站门户域名地址进行预览，下图显示了整个课程预览的流程图：
+
+![image-20230316164034740](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316164034740.png)
+
+说明如下：
+
+1、点击课程预览，通过Nginx、后台服务网关请求内容管理服务进行课程预览。
+
+2、内容管理服务查询课程相关信息进行整合，并通过模板引擎技术在服务端渲染生成页面，返回给浏览器。
+
+3、通过课程预览页面点击”马上学习“打开视频播放页面。
+
+4、视频播放页面通过Nginx请求后台服务网关，查询课程信息展示课程计划目录，请求媒资服务查询课程计划绑定的视频文件地址，在线浏览播放视频。
+
+#### 5.2.2 模板引擎
+
+##### 5.2.2.1 什么是模板引擎
+
+根据前边的数据模型分析，课程预览就是把课程的相关信息进行整合，在课程预览界面进行展示，课程预览界面与课程发布的课程详情界面一致。
+
+项目采用模板引擎技术实现课程预览界面。
+
+什么是模板引擎？
+
+早期我们采用的jsp技术就是一种模板引擎技术，如下图：
+
+![image-20230316164220103](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316164220103.png)
+
+在nacos中未内容管理接口层配置freemarker,公用配置组`xuecheng-plus-common`新加一个`freemarker-config-dev.yaml`
+
+![image-20230316164752460](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316164752460.png)
+
+配置信息如下
+
+```yaml
+spring:
+  freemarker:
+    enabled: true
+    cache: false   #关闭模板缓存，方便测试
+    settings:
+      template_update_delay: 0
+    suffix: .ftl   #页面模板后缀名
+    charset: UTF-8
+    template-loader-path: classpath:/templates/   #页面模板位置(默认为 classpath:/templates/)
+    resources:
+      add-mappings: false   #关闭项目中的静态资源映射(static、resources文件夹下的资源)
+```
+
+FreeMarker 是一款 *模板引擎*： 即一种基于模板和要改变的数据， 并用来生成输出文本(HTML网页，电子邮件，配置文件，源代码等)的通用工具。 它不是面向最终用户的，而是一个Java类库，是一款程序员可以嵌入他们所开发产品的组件。FreeMarker 是 [免费的](http://www.fsf.org/philosophy/free-sw.html)， 基于Apache许可证2.0版本发布。
+
+
+
+##### 5.2.2.2 Freemarker快速入门
+
+下边在内容管理接口层搭建Freemarker的运行环境并进行测试。
+
+在内容管理接口工层 添加Freemarker与SpringBoot的整合包
+
+```xml
+<!-- Spring Boot 对结果视图 Freemarker 集成 -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-freemarker</artifactId>
+</dependency>
+
+```
+
+在内容管理接口工程添加freemarker-config-dev.yaml
+
+```yaml
+        shared-configs:
+          - data-id: swagger-${spring.profiles.active}.yaml
+            group: xuecheng-plus-common
+            refresh: true
+          - data-id: logging-${spring.profiles.active}.yaml
+            group: xuecheng-plus-common
+            refresh: true
+          - data-id: freemarker-config-${spring.profiles.active}.yaml
+            group: xuecheng-plus-common
+            refresh: true
+```
+
+添加模板，在resources下创建templates目录，添加test.ftl模板文件
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Hello World!</title>
+</head>
+<body>
+Hello ${name}!
+</body>
+</html>
+
+```
+
+编写controller方法，准备模型数据
+
+```java
+package com.xuecheng.content.api;
+
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.servlet.ModelAndView;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 返回模板对象
+ * @date 2023/3/16 16:57
+ **/
+@Controller
+@Api("模板相关")
+public class FreeMarkerControllers {
+
+    @ApiOperation("模板测试")
+    @GetMapping("/testfreemarker")
+
+    public ModelAndView test(){
+        ModelAndView modelAndView = new ModelAndView();
+        modelAndView.setViewName("test"); //会根据配置的模板后缀进行拼接
+        modelAndView.addObject("name","woldier"); //设置model
+        return modelAndView;
+    }
+}
+
+```
+
+启动内容管理接口工程，访问http://localhost:63040/content/testfreemarker
+
+![image-20230316170455210](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316170455210.png)
+
+freemarker提供很多指令用于解析各种类型的数据模型，参考地址：http://freemarker.foofun.cn/ref_directives.html
+
+
+
+
+
+#### 5.2.3 测试静态资源
+
+
+
+
+
+##### 5.2.3.1 部署网站门户
+
+在课程预览界面上要加载css、js、图片等内容，这里部署nginx来访问这些静态资源，对于SpringBoot服务的动态资源由Nginx去代理请求，如下图：
+
+![image-20230316170746698](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316170746698.png)
+
+1、在本机安装 Nginx ，从课程资料目录获取nginx-1.23.1.zip并解压。
+
+2、运行nginx-1.23.1目录下的nginx.exe。
+
+默认端口为80，如果本机80端口被占用，则需要杀掉占用进程后再启动nginx。
+
+如果无法杀掉80端口占用进程则需要修改nginx-1.23.1目录下conf/nginx.conf配置文件
+
+
+
+![image-20230316170811639](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316170811639.png)
+
+将80端口修改为空闲端口。
+
+![image-20230316171131059](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316171131059.png)
+
+![image-20230316171142361](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316171142361.png)
+
+启动nginx，访问http://localhost 出现下边的网页表示启动成功
+
+![image-20230316171020119](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316171020119.png)
+
+下边开始部署前端工程：
+
+1、从课程资料目录获取xc-ui-pc-static-portal.zip 并解压。
+
+2、修改本机hosts文件，加入127.0.0.1 www.51xuecheng.cn 51xuecheng.cn ucenter.51xuecheng.cn teacher.51xuecheng.cn file.51xuecheng.cn。
+
+window10操作系统hosts文件在C:\Windows\System32\drivers\etc下
+
+Centos7操作系统的hosts文件在/etc目录下。
+
+在hosts文件加入如下配置
+
+```shell
+127.0.0.1 www.51xuecheng.cn 51xuecheng.cn ucenter.51xuecheng.cn teacher.51xuecheng.cn file.51xuecheng.cn
+```
+
+3、在nginx-1.23.1目录中找到conf目录，配置目录下的nginx.conf文件。
+
+配置内容如下，注意更改xc-ui-pc-static-portal目录的路径：
+
+```conf
+server {
+        listen       80;
+        server_name  www.51xuecheng.cn localhost; 
+        #rewrite ^(.*) https://$server_name$1 permanent;
+        #charset koi8-r;
+        ssi on;
+        ssi_silent_errors on;
+        #access_log  logs/host.access.log  main;
+
+        location / {
+            alias   D:/nginx/xc-ui-pc-static-portal/;
+            index  index.html index.htm;
+        }
+        #静态资源
+        location /static/img/ {  
+                alias  D:/nginx/xc-ui-pc-static-portal/img/;
+        } 
+        location /static/css/ {  
+                alias   D:/nginx/xc-ui-pc-static-portal/css/;
+        } 
+        location /static/js/ {  
+                alias   D:/nginx/xc-ui-pc-static-portal/js/;
+        } 
+        location /static/plugins/ {  
+                alias   D:/nginx/xc-ui-pc-static-portal/plugins/;
+                add_header Access-Control-Allow-Origin http://ucenter.51xuecheng.cn;
+
+        add_header Access-Control-Allow-Credentials true;  
+                add_header Access-Control-Allow-Methods GET;
+        } 
+        location /plugins/ {  
+                alias   D:/nginx/xc-ui-pc-static-portal/plugins/;
+        } 
+
+
+
+        #error_page  404              /404.html;
+
+        # redirect server error pages to the static page /50x.html
+        #
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+```
+
+> 这里开启了一个叫ssi的功能
+>
+> SSI：Server Side Include，是一种基于服务端的网页制作技术，大多数（尤其是基于Unix平台）的web[服务器](https://cloud.tencent.com/product/cvm?from=10680)如Netscape Enterprise Server等均支持SSI命令。 它的工作原因是：在页面内容发送到客户端之前，使用SSI指令将文本、图片或代码信息包含到网页中。对于在多个文件中重复出现内容，使用SSI是一种简便的方法，将内容存入一个包含文件中即可，不必将其输入所有文件。通过一个非常简单的语句即可调用包含文件，此语句指示 Web 服务器将内容插入适当网页。而且，使用包含文件时，对内容的所有更改只需在一个地方就能完成。
+>
+> https://cloud.tencent.com/developer/article/1757424
+>
+> https://juejin.cn/post/6854573216887734279
+
+启动nginx:
+
+![image-20230316172508350](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316172508350.png)
+
+日志文件在nginx安装目录下的logs目录：
+
+![image-20230316172549026](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316172549026.png)
+
+
+
+启动成功访问http://www.51xuecheng.cn 
+
+![image-20230316172833081](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316172833081.png)
+
+##### 5.2.3.2 课程详情页面
+
+course_template.html是一个静态html页面，里边还没有添加freemarker标签，如果要预览该页面需要借助Nginx进行预览，因为页面需要加载一些css样式表、图片等内容。
+
+course_template.html文件在xc-ui-pc-static-portal\course目录下
+
+![image-20230316172922990](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316172922990.png)
+
+通过浏览器访问：http://www.51xuecheng.cn/course/course_template.html
+
+效果如下：
+
+![image-20230316172952797](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316172952797.png)
+
+出现这个画面说明模板文件正常浏览是没有问题的
+
+
+
+##### 5.2.3.3 文件服务器
+
+在进行课程预览时需要展示课程的图片，在线插放课程视频，课程图片、视频这些都在MinIO文件系统存储，下边统一由Nginx代理，通过文件服务域名统一访问。如下图：
+
+
+
+![image-20230316173030034](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316173030034.png)
+
+
+
+在nginx.conf中配置文件服务器的代理地址
+
+```conf
+#文件服务
+  upstream fileserver{
+    server 192.168.101.65:9000 weight=10;
+  } 
+   server {
+        listen       80;
+        server_name  file.51xuecheng.cn;
+        #charset koi8-r;
+        ssi on;
+        ssi_silent_errors on;
+        #access_log  logs/host.access.log  main;
+        location /video {
+            proxy_pass   http://fileserver;
+             }
+
+        location /mediafiles {
+            proxy_pass   http://fileserver;
+        }
+   }
+
+
+```
+
+配置完毕，重新加载nginx配置文件。
+
+通过cmd进入nginx.exe所在目录,运行如下命令
+
+```shell
+./nginx.exe -s reload
+```
+
+通过http://file.51xuecheng.cn/mediafiles/图片文件地址 访问图片
+
+在媒资数据库的文件表中找一个图片的地址进行测试。
+
+![image-20230316173757063](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316173757063.png)
+
+##### 5.2.3.4 视频播放页面
+
+进入课程详情页面，点击马上学习或课程目录下的小节的名称将打开视频播放页面。
+
+![image-20230316173828102](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316173828102.png)
+
+首先在nginx.conf中配置视频播放页面的地址
+
+```java
+        location /course/preview/learning.html {
+                alias D:/nginx/xc-ui-pc-static-portal/course/learning.html;
+        } 
+        location /course/search.html {  
+                root   D:/nginx/xc-ui-pc-static-portal;
+        } 
+        location /course/learning.html {  
+                root   D:/nginx/xc-ui-pc-static-portal;
+        } 
+
+```
+
+下边需要配置learning.html页面的视频播放路径来测试视频播放页面，找到learning.html页面中videoObject对象的定义处，配置视频的播放地址。
+
+![image-20230316180310139](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316180310139.png)
+
+加载nginx配置文件
+
+点击课程详情页面上的视频播放链接，打开视频播放页面，如下图：
+
+![image-20230316180242582](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316180242582.png)
+
+
+
+#### 5.2.4 接口定义
+
+##### 5.2.4.1 定义课程预览接口
+
+课程预览接口要将课程信息进行整合，在服务端渲染页面后返回浏览器。
+
+下边对课程预览接口进行分析：
+
+1、请求参数
+
+传入课程id，表示要预览哪一门课程。
+
+2、响应结果
+
+输出课程详情页面到浏览器。
+
+ 
+
+响应页面到浏览器使用freemarker模板引擎技术实现，首先从课程资料目录下获取课程预览页面course_template.html，拷贝至内容管理的接口工程的resources/templates下，并将其在本目录复制一份命名为course_template.ftl
+
+![image-20230316181807119](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316181807119.png)
+
+
+
+```java
+package com.xuecheng.content.api;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.servlet.ModelAndView;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程预览发布
+ * @date 2023/3/16 18:16
+ **/
+@Controller
+public class CoursePublishController {
+    /**
+    * @description 课程预览
+    * @param courseId  课程id
+    * @return org.springframework.web.servlet.ModelAndView
+    * @author: woldier
+    * @date: 2023/3/16 18:17
+    */
+    @GetMapping("/coursepreview/{courseId}")
+    public ModelAndView preview(@PathVariable("courseId") Long courseId){
+
+        ModelAndView modelAndView = new ModelAndView();
+        modelAndView.addObject("model",null);
+        modelAndView.setViewName("course_template");
+        return modelAndView;
+    }
+
+}
+
+```
+
+重启内容管理接口工程，访问http://localhost:63040/content/coursepreview/74
+
+如下图：
+
+![image-20230316181837501](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316181837501.png)
+
+![image-20230316181905862](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316181905862.png)
+
+课程预览没有css,这是没有加载到静态资源,我们接下来解决
+
+##### 5.2.4.2 配置反向代理
+
+课程预览接口虽然可以正常访问，但是页面没有样式，查看浏览器请求记录，发现图片、样式无法正常访问。
+
+这些静态资源全在门户下，我们需要由Nginx反向代理访问课程预览接口，通过门户的URL去访问课程预览。
+
+1、在Nginx下配置：(这里我们代理的是网关)
+
+```conf
+    upstream gatewayserver{
+        server localhost:63010 weight=10;
+    }
+    server {
+        listen       80;
+        #server_name  www.51xuecheng.cn localhost; 
+        #rewrite ^(.*) https://$server_name$1 permanent;
+        #charset koi8-r;
+        ssi on;
+        ssi_silent_errors on;
+        #access_log  logs/host.access.log  main;
+        location /api/ {
+             proxy_pass http://gatewayserver/;
+        }
+```
+
+![image-20230316183805171](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316183805171.png)
+
+3、启动微服务网关
+
+4、此时访问新地址： http://www.51xuecheng.cn/api/content/coursepreview/74 
+
+页面样式正常
+
+![image-20230316183832077](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316183832077.png)
+
+页面虽然正常，但是里边的内容都是静态内容，稍后接口层调用service方式获取模型数据并进行页面渲染。
+
+目前的方式是通过Nginx访问网关，由网关再将请求转发到微服务，Nginx是整个的项目最前方的代理服务器，如下图：
+
+![image-20230316183845255](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316183845255.png)
+
+#### 5.2.5 接口开发
+
+
+
+
+
+##### 5.2.5.1 数据模型
+
+课程预览就是把课程基本信息、营销信息、课程计划、师资等课程的相关信息进行整合，在预览页面进行展示。如下图：
+
+![image-20230316183953958](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316183953958.png)
+
+在使用freemarker渲染生成视图时需要数据模型，此数据模型包括了基本信息、营销信息、课程计划、师资等信息。
+
+所以首先定义一个数据模型类：
+
+
+
+##### 5.2.5.2 service 接口
+
+Service负责从数据库查询基本信息、营销信息、课程计划等课程相关信息，组成CoursePreviewDto 对象。
+
+```java
+package com.xuecheng.content.service;
+
+import com.xuecheng.content.model.dto.CoursePreviewDto;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程发布预览service
+ * @date 2023/3/16 18:43
+ **/
+public interface CoursePublishService {
+
+    
+    /**
+    * @description 获取课程预览所需要的信息 
+    * @param courseId  课程id
+    * @return com.xuecheng.content.model.dto.CoursePreviewDto 
+    * @author: woldier 
+    * @date: 2023/3/16 18:45
+    */
+    public CoursePreviewDto getCoursePreviewInfo(Long courseId);
+}
+
+```
+
+接口实现如下：
+
+```java
+package com.xuecheng.content.service.impl;
+
+import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.model.dto.CourseBaseInfoDto;
+import com.xuecheng.content.model.dto.CoursePreviewDto;
+import com.xuecheng.content.model.dto.TeachplanDto;
+import com.xuecheng.content.service.CourseBaseInfoService;
+import com.xuecheng.content.service.CoursePublishService;
+import com.xuecheng.content.service.TeachplanService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程发布预览service-impl
+ * @date 2023/3/16 18:44
+ **/
+@Service
+@RequiredArgsConstructor
+public class CoursePublishServiceImpl implements CoursePublishService {
+    private final CourseBaseInfoService courseBaseInfoService;
+    private final TeachplanService teachplanService;
+    /**
+     * @description 获取课程预览所需要的信息
+     * @param courseId  课程id
+     * @return com.xuecheng.content.model.dto.CoursePreviewDto
+     * @author: woldier
+     * @date: 2023/3/16 18:45
+     */
+    @Override
+    public CoursePreviewDto getCoursePreviewInfo(Long courseId) throws XueChengPlusException {
+        /*
+         * 1.查询课程基本,营销信息 
+         * 2.查询课程计划信息
+         */
+        CourseBaseInfoDto courseBaseInfo = courseBaseInfoService.getCourseBaseInfo(courseId);
+        if(courseBaseInfo==null) XueChengPlusException.cast("获取课程基本信息出错");
+        List<TeachplanDto> teachplanDtos = teachplanService.selectTreeNodes(courseId);
+        if(teachplanDtos==null) XueChengPlusException.cast("获取课程计划信息出错");
+        CoursePreviewDto coursePreviewDto = new CoursePreviewDto();
+        coursePreviewDto.setCourseBase(courseBaseInfo);
+        coursePreviewDto.setTeachplans(teachplanDtos);
+        return coursePreviewDto;
+    }
+}
+
+```
+
+
+
+##### 5.2.5.3 接口完善
+
+接口层Controller调用Service方法获取模板引擎需要的模型数据
+
+```java
+package com.xuecheng.content.api;
+
+import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.service.CoursePublishService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.servlet.ModelAndView;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程预览发布
+ * @date 2023/3/16 18:16
+ **/
+@Controller
+@RequiredArgsConstructor
+public class CoursePublishController {
+    private final CoursePublishService coursePublishService;
+    /**
+    * @description 课程预览
+    * @param courseId  课程id
+    * @return org.springframework.web.servlet.ModelAndView
+    * @author: woldier
+    * @date: 2023/3/16 18:17
+    */
+    @GetMapping("/coursepreview/{courseId}")
+    public ModelAndView preview(@PathVariable("courseId") Long courseId) throws XueChengPlusException {
+
+        ModelAndView modelAndView = new ModelAndView();
+        modelAndView.addObject("model",coursePublishService.getCoursePreviewInfo(courseId));
+        modelAndView.setViewName("course_template");
+        return modelAndView;
+    }
+
+}
+
+```
+
+
+
+
+
+
+
+##### 5.2.5.4 前后端联调
+
+原来前端直接指向后台网关地址，现在要更改为Nginx的地址，如下：
+
+![image-20230316185415665](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316185415665.png)
+
+重启前端工程，进入课程列表点击"预览"按钮，正常打开课程预览页面http://www.51xuecheng.cn/api/content/coursepreview/1
+
+![image-20230316190446078](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316190446078.png)
+
+
+
+##### 5.2.5.5 编写模板
+
+freemarker提供很多指令用于解析各种类型的数据模型，参考地址：http://freemarker.foofun.cn/ref_directives.html
+
+修改模板后需要编译，如下图：
+
+![image-20230316190533793](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316190533793.png)
+
+
+
+在调试模板时，可以看出哪些信息有缺少，在课程管理处进行补充，比如下图显示课程计划信息不完整，需要进入课程计划界面添加课程计划。
+
+![image-20230316190551057](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316190551057.png)
+
+
+
+完整的course_template.ftl模板在课程资料目录下，差不多学会了freemarker标签的使用方法，将课程资料下的course_template.ftl覆盖自己的工程下的course_template.ftl。
+
+##### 5.2.5.6 视频播放页面接口
+
+从课程详情页面进入视频播放页面，如下图：
+
+![image-20230316191144008](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230316191144008.png)
+
+在此页面需要从后台获取课程信息、根据课程计划获取对应的视频地址，下边编写这两个接口：
+
+获取课程信息接口：/open/content/course/whole/{courseId}
+
+```http
+/open/content/course/whole/课程id
+
+响应：同课程预览service接口返回数据
+
+```
+
+根据课程计划获取视频地址接口：/open/media/preview/{mediaId}
+
+```http
+/open/media/preview/课程计划id
+
+响应：
+{"code":0,"msg":"success","result":"视频的url","successful":true}
+
+```
+
+1、在nginx配置如下地址
+
+```conf
+#openapi
+location /open/content/ {
+        proxy_pass http://gatewayserver/content/open/;
+} 
+location /open/media/ {
+        proxy_pass http://gatewayserver/media/open/;
+} 
+
+```
+
+配置运行nginx.exe -s reload加载nginx的配置文件 
+
+2、在内容管理接口层定义CourseOpenController类，并定义接口：获取课程信息接口：/open/content/course/whole/{courseId}
+
+```java
+package com.xuecheng.content.api;
+
+import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.model.dto.CoursePreviewDto;
+import com.xuecheng.content.service.CourseBaseInfoService;
+import com.xuecheng.content.service.CoursePublishService;
+import io.swagger.annotations.Api;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@Api(value = "课程公开查询接口", tags = "课程公开查询接口")
+@RestController
+@RequestMapping("/open")
+public class CourseOpenController {
+
+    @Autowired
+    private CourseBaseInfoService courseBaseInfoService;
+
+    @Autowired
+    private CoursePublishService coursePublishService;
+
+
+    @GetMapping("/course/whole/{courseId}")
+    public CoursePreviewDto getPreviewInfo(@PathVariable("courseId") Long courseId) throws XueChengPlusException {
+        //获取课程预览信息
+        CoursePreviewDto coursePreviewInfo = coursePublishService.getCoursePreviewInfo(courseId);
+        return coursePreviewInfo;
+    }
+
+}
+
+```
+
+
+
+3、在媒资管理服务media-api工程定义MediaOpenController类，并定义接口/open/media/preview/
+
+```java
+package com.xuecheng.media.api;
+
+import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.base.model.RestResponse;
+import com.xuecheng.media.model.po.MediaFiles;
+import com.xuecheng.media.service.MediaFileService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description TODO
+ * @date 2023/3/16 19:17
+ **/
+@Api(value = "媒资文件管理接口", tags = "媒资文件管理接口")
+@RestController
+@RequestMapping("/open")
+
+public class MediaOpenController {
+
+    @Autowired
+    MediaFileService mediaFileService;
+
+    @ApiOperation("预览文件")
+    @GetMapping("/preview/{mediaId}")
+    public RestResponse<String> getPlayUrlByMediaId(@PathVariable String mediaId) throws XueChengPlusException {
+
+        MediaFiles mediaFiles = mediaFileService.getFileById(mediaId);
+        if (mediaFiles == null || StringUtils.isEmpty(mediaFiles.getUrl())) {
+            XueChengPlusException.cast("视频还没有转码处理");
+        }
+        return RestResponse.success(mediaFiles.getUrl());
+    }
+}
+
+```
+
+
+
+5、测试
+
+定义好后，启动内容管理、媒资管理、后台服务网关服务，测试视频播放页面是否可以正常获取课程计划，点击具体的课程计划是否正常可以播放视频。
+
+
 
 
 
