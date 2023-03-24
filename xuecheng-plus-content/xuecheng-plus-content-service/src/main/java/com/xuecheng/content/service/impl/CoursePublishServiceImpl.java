@@ -1,9 +1,13 @@
 package com.xuecheng.content.service.impl;
 
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.mapper.CoursePublishMapper;
+import com.xuecheng.content.mapper.CoursePublishPreMapper;
 import com.xuecheng.content.model.dto.CourseBaseInfoDto;
 import com.xuecheng.content.model.dto.CoursePreviewDto;
 import com.xuecheng.content.model.dto.TeachplanDto;
+import com.xuecheng.content.model.po.CoursePublish;
 import com.xuecheng.content.service.CourseBaseInfoService;
 import com.xuecheng.content.service.CoursePublishService;
 import com.xuecheng.content.service.TeachplanService;
@@ -20,7 +24,7 @@ import java.util.List;
  **/
 @Service
 @RequiredArgsConstructor
-public class CoursePublishServiceImpl implements CoursePublishService {
+public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, CoursePublish> implements CoursePublishService {
     private final CourseBaseInfoService courseBaseInfoService;
     private final TeachplanService teachplanService;
     /**

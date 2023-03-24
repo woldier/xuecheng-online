@@ -1,7 +1,9 @@
 package com.xuecheng.content.service;
 
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.content.model.dto.CoursePreviewDto;
+import com.xuecheng.content.model.po.CoursePublish;
 
 /**
  * @author woldier
@@ -9,7 +11,7 @@ import com.xuecheng.content.model.dto.CoursePreviewDto;
  * @description 课程发布预览service
  * @date 2023/3/16 18:43
  **/
-public interface CoursePublishService {
+public interface CoursePublishService extends IService<CoursePublish> {
 
 
     /**
