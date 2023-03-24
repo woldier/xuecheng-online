@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
 /**
@@ -18,20 +20,34 @@ import org.springframework.web.servlet.ModelAndView;
 @RequiredArgsConstructor
 public class CoursePublishController {
     private final CoursePublishService coursePublishService;
+
     /**
-    * @description 课程预览
-    * @param courseId  课程id
-    * @return org.springframework.web.servlet.ModelAndView
-    * @author: woldier
-    * @date: 2023/3/16 18:17
-    */
+     * @param courseId 课程id
+     * @return org.springframework.web.servlet.ModelAndView
+     * @description 课程预览
+     * @author: woldier
+     * @date: 2023/3/16 18:17
+     */
     @GetMapping("/coursepreview/{courseId}")
     public ModelAndView preview(@PathVariable("courseId") Long courseId) throws XueChengPlusException {
 
         ModelAndView modelAndView = new ModelAndView();
-        modelAndView.addObject("model",coursePublishService.getCoursePreviewInfo(courseId));
+        modelAndView.addObject("model", coursePublishService.getCoursePreviewInfo(courseId));
         modelAndView.setViewName("course_template");
         return modelAndView;
+    }
+
+    /**
+    * @description 课程提交审核
+    * @param courseId  课程id
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/24 17:14
+    */
+    @ResponseBody
+    @PostMapping("/courseaudit/commit/{courseId}")
+    public void commitAudit(@PathVariable("courseId") Long courseId) {
+
     }
 
 }
