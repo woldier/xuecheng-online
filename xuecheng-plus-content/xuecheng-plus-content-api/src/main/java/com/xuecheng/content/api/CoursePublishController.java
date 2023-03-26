@@ -1,6 +1,7 @@
 package com.xuecheng.content.api;
 
 import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.service.CoursePublishPreCustomService;
 import com.xuecheng.content.service.CoursePublishService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -20,6 +21,7 @@ import org.springframework.web.servlet.ModelAndView;
 @RequiredArgsConstructor
 public class CoursePublishController {
     private final CoursePublishService coursePublishService;
+    private final CoursePublishPreCustomService coursePublishPreCustomService;
 
     /**
      * @param courseId 课程id
@@ -46,8 +48,9 @@ public class CoursePublishController {
     */
     @ResponseBody
     @PostMapping("/courseaudit/commit/{courseId}")
-    public void commitAudit(@PathVariable("courseId") Long courseId) {
+    public void commitAudit(@PathVariable("courseId") Long courseId) throws XueChengPlusException {
 
+        coursePublishPreCustomService.commitAudit(1232141425L,courseId);
     }
 
 }
