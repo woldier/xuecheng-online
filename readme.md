@@ -12390,6 +12390,736 @@ public class MediaOpenController {
 
 
 
+### 5.3 课程审核
+
+#### 5.3.1 需求分析
+
+##### 5.3.1.1 业务流程
+
+根据模块需求分析，课程发布前要先审核，审核通过方可发布。下图是课程审核及发布的流程图：
+
+![image-20230321111242800](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230321111242800.png)
+
+为什么课程审核通过才可以发布呢？
+
+这样做为了防止课程信息有违规情况，课程信息不完善对网站用户体验也不好，课程审核不仅起到监督作用，也是帮助教学机构规范使用平台的手段。
+
+如何控制课程审核通过才可以发布课程呢？
+
+在课程基本表course_base表设置课程审核状态字段，包括：未提交、已提交(未审核)、审核通过、审核不通过。
+
+下边是课程状态的转化关系：
+
+![image-20230321111311757](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230321111311757.png)
+
+说明如下：
+
+1、一门课程新增后它的审核状为”未提交“，发布状态为”未发布“。
+
+2、课程信息编辑完成，教学机构人员执行”提交审核“操作。此时课程
+
+的审核状态为”已提交“。
+
+3、当课程状态为已提交时运营平台人员对课程进行审核。
+
+4、运营平台人员审核课程，结果有两个：审核通过、审核不通过。
+
+5、课程审核过后不管状态是通过还是不通过，教学机构可以再次修改课程并提交审核，此时课程状态为”已提交“。此时运营平台人员再次审核课程。
+
+6、课程审核通过，教学机构人员可以发布课程，发布成功后课程的发布状态为”已发布“。
+
+7、课程发布后通过”下架“操作可以更改课程发布状态为”下架“
+
+8、课程下架后通过”上架“操作可以再次发布课程，上架后课程发布状态为“发布”。
+
+##### 5.3.1.2 数据模型
+
+过业务流程的分析，现在我们思考：
+
+1、课程提交审核后还允许修改课程吗？
+
+如果不允许修改是不合理的，因为提交审核后可以继续做下一个阶段的课程内容，比如添加课程计划，上传课程视频等。
+
+如果允许修改那么课程审核时看到的课程内容从哪里来？如果也从课程基本信息表、课程营销表、课程计划表查询那么存在什么问题呢？如下图：
+
+![image-20230324164548640](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230324164548640.png)
+
+![](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230324164548640.png)
+
+运营人员审核课程和教学机构编辑课程操作的数据是同一份，此时会导致冲突。比如：运营人员正在审核时教学机构把数据修改了。
+
+为了解决这个问题，专门设计课程预发布表。
+
+如下图：
+
+![image-20230324164616776](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230324164616776.png)
+
+提交课程审核，将课程信息汇总后写入课程预发布表，课程预发布表记录了教学机构在某个时间点要发布的课程信息。
+
+课程审核人员从预发布表查询信息进行审核。
+
+课程审核的同时可以对课程进行修改，修改的内容不会写入课程预发布表。
+
+课程审核通过执行课程发布，将课程预发布表的信息写入课程发布表。
+
+ 
+
+2、提交审核课程后，也修改了课程信息，可以再次提交审核吗？
+
+这个问题在上边分析课程审核状态时已经有了答案，如下图：
+
+![image-20230324164937092](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230324164937092.png)
+
+提交审核课程后，必须等到课程审核完成才可以再次提交课程。
+
+ 
+
+课程审核功能涉及教学机构提交审核，运营人员进行课程审核。在课堂上我们仅实现教学机构提交审核功能，课程审核的结果通过手动修改数据库来实现。
+
+虽然课堂上不实现课程审核功能，完整的课程审核数据表设计需要理解。
+
+提交审核将信息写入课程预发布表，课程预发布表结构如下
+
+![image-20230324170813086](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230324170813086.png)
+
+更新课程基本信息表的课程审核状态为：已经提交
+
+课程审核后更新课程基本信息表的审核状态、课程预发布表的审核状态，并将审核结果写入课程审核记录。
+
+审核记录表结构如下：
+
+![image-20230324170923312](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230324170923312.png)
+
+#### 5.3.2 接口定义
+
+下边定义提交课程审核的接口，在课程发布Controller中定义接口如下：
+
+```java
+/**
+    * @description 课程提交审核
+    * @param courseId  课程id
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/24 17:14
+    */
+    @ResponseBody
+    @PostMapping("/courseaudit/commit/{courseId}")
+    public void commitAudit(@PathVariable("courseId") Long courseId) {
+
+    }
+```
+
+
+
+#### 5.3.3 接口开发
+
+##### 5.3.3.1 DAO开发
+
+1、查询课程基本信息、课程营销信息、课程计划信息等课程相关信息，整合为课程预发布信息。
+
+2、向课程预发布表course_publish_pre插入一条记录，如果已经存在则更新，审核状态为：已提交。
+
+3、更新课程基本表course_base课程审核状态为：已提交。
+
+约束：
+
+1、对已提交审核的课程不允许提交审核。
+
+2、本机构只允许提交本机构的课程。
+
+3、没有上传图片不允许提交审核。
+
+4、没有添加课程计划不允许提交审核。
+
+ 
+
+使用代码生成器生成课程发布表、课程预发布表的PO、Mpper，并拷贝到相应的工程下。
+
+##### 5.3.3.2 Service开发
+
+```java
+package com.xuecheng.content.service;
+
+import com.xuecheng.base.exception.XueChengPlusException;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程预发布
+ * @date 2023/3/25 18:50
+ **/
+public interface CoursePublishPreCustomService {
+    /**
+    * @description 提交审核
+    * @param companyId 公司id
+     * @param courseId  课程id
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/25 18:55
+    */
+    void commitAudit(Long companyId,Long courseId) throws XueChengPlusException;
+}
+
+```
+
+```java
+package com.xuecheng.content.service.impl;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONPObject;
+import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.mapper.CourseBaseMapper;
+import com.xuecheng.content.model.dto.CourseBaseInfoDto;
+import com.xuecheng.content.model.dto.CoursePreviewDto;
+import com.xuecheng.content.model.dto.TeachplanDto;
+import com.xuecheng.content.model.enums.CourseAuditStatus;
+import com.xuecheng.content.model.po.CourseMarket;
+import com.xuecheng.content.model.po.CoursePublishPre;
+import com.xuecheng.content.service.*;
+import lombok.RequiredArgsConstructor;
+import org.apache.ibatis.javassist.expr.NewArray;
+import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description TODO
+ * @date 2023/3/25 18:55
+ **/
+@Service
+@RequiredArgsConstructor
+public class CoursePublishPreCustomServiceImpl implements CoursePublishPreCustomService {
+
+
+    private final CourseBaseMapper courseBaseMapper;
+    private final CourseBaseInfoService courseBaseInfoService;
+    private final CourseMarketService courseMarketService;
+    private final CoursePublishService coursePublishService;
+    private final CoursePublishPreService coursePublishPreService;
+    private final TeachplanService teachplanService;
+
+    @Override
+    @Transactional
+    public void commitAudit(Long companyId, Long courseId) throws XueChengPlusException {
+        /**
+         *
+         * 1、查询课程基本信息、课程营销信息、课程计划信息等课程相关信息，整合为课程预发布信息。
+         * 2、向课程预发布表course_publish_pre插入一条记录，如果已经存在则更新，审核状态为：已提交。
+         * 3、更新课程基本表course_base课程审核状态为：已提交。
+         * 约束：
+         * 1、对已提交审核的课程不允许提交审核。
+         * 2、本机构只允许提交本机构的课程。
+         * 3、没有上传图片不允许提交审核。
+         * 4、没有添加课程计划不允许提交审核。
+         * */
+        CourseBaseInfoDto courseBaseInfo = courseBaseInfoService.getCourseBaseInfo(courseId);
+        //如果当前课程审核状态为已提交,不允许再提交审核
+        if (courseBaseInfo.getAuditStatus().equals(CourseAuditStatus.COMMIT.getCode()))
+            XueChengPlusException.cast("课程已经提交审核,请等待课程审核结果");
+        // 查询课程预览的信息 里面包含课程基本信息,课程营销信息,课程计划信息
+        CoursePreviewDto coursePreviewInfo = coursePublishService.getCoursePreviewInfo(courseId);
+        //判断课程id是否匹配
+        if (!coursePreviewInfo.getCourseBase().getId().equals(courseId))
+            XueChengPlusException.cast("课程id不匹配");
+        CoursePublishPre coursePublishPre = new CoursePublishPre();
+        //判断课程信息是否完整
+        if (StringUtils.isEmpty(coursePreviewInfo.getCourseBase().getPic()))
+            XueChengPlusException.cast("课程图片信息为空,请先修改");
+
+        /*
+         * 拷贝信息到课程语法与实体
+         * */
+        BeanUtils.copyProperties(coursePreviewInfo.getCourseBase(), coursePublishPre);
+
+        //添加营销信息
+        CourseMarket courseMarket = courseMarketService.getById(courseId);
+        String courseMarketJsonString = JSON.toJSONString(courseMarket);
+        coursePublishPre.setMarket(courseMarketJsonString);
+
+        //添加课程信息
+        List<TeachplanDto> teachplanDtoList = teachplanService.selectTreeNodes(courseId);
+        if (teachplanDtoList.isEmpty())
+            XueChengPlusException.cast("课程计划信息为空,不允许提交审核");
+        String teachplanDtoListJSONString = JSON.toJSONString(teachplanDtoList);
+        coursePublishPre.setTeachplan(teachplanDtoListJSONString);
+
+        //设置预发布记录状态,已提交
+        coursePublishPre.setStatus(CourseAuditStatus.COMMIT.getCode());
+
+        //课程公司id
+        coursePublishPre.setCompanyId(companyId);
+
+        coursePublishPre.setCreateDate(LocalDateTime.now());
+
+        coursePublishPreService.saveOrUpdate(coursePublishPre);
+        //更新课程基本信息表状态
+        courseBaseInfo.setAuditStatus(CourseAuditStatus.COMMIT.getCode());
+        courseBaseMapper.updateById(courseBaseInfo);
+    }
+}
+
+```
+
+
+
+##### 5.3.3.3 接口代码完善
+
+
+
+```java
+ /**
+    * @description 课程提交审核
+    * @param courseId  课程id
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/24 17:14
+    */
+    @ResponseBody
+    @PostMapping("/courseaudit/commit/{courseId}")
+    public void commitAudit(@PathVariable("courseId") Long courseId) throws XueChengPlusException {
+
+        coursePublishPreCustomService.commitAudit(1232141425L,courseId);
+    }
+```
+
+
+
+#### 5.3.4 接口测试
+
+使用前端提前课程审核：
+
+1、找一门信息不全的课程，测试各各约束条件。
+
+2、正常提交后，观察数据库中课程预发布表记录的内容是否完整。
+
+3、测试审核过后再次提交，提交后观察数据库中课程预发布表记录的内容是否正确。
+
+审核通过需手动修改数据库：
+
+1、修改课程预发布表的状态为审核通过202004。
+
+2、修改课程基本表的审核状态为审核通过202004。
+
+
+
+
+
+### 5.4 课程发布
+
+#### 5.4.1 需求分析
+
+##### 5.4.1.1 业务流程
+
+教学机构人员在课程审核通过后即可发布课程，课程发布后会公开展示在网站上供学生查看、选课和学习。
+
+在网站上展示课程信息需要解决课程信息显示的性能问题，如果速度慢(排除网速)会影响用户的体验性。
+
+如何去快速搜索课程？
+
+打开课程详情页面仍然去查询数据库可行吗？
+
+为了提高网站的速度需要将课程信息进行缓存，并且要将课程信息加入索引库方便搜索，下图显示了课程发布后课程信息的流转情况：
+
+![image-20230326161503915](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230326161503915.png)
+
+1、向内容管理数据库的课程发布表存储课程发布信息，更新课程基本信息表中发布状态为已发布。
+
+2、向Redis存储课程缓存信息。
+
+3、向Elasticsearch存储课程索引信息。
+
+4、请求分布文件系统存储课程静态化页面(即html页面)，实现快速浏览课程详情页面。
+
+##### 5.4.1.2 数据模型
+
+课程发布表的数据来源于课程预发布表，它们的结构基本一样，只是课程发布表中的状态是课程发布状态，如下图：
+
+![image-20230326162456100](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230326162456100.png)
+
+redis中的课程缓存信息是将课程发布表中的数据转为json进行存储。
+
+elasticsearch中的课程索引信息是根据搜索需要将课程名称、课程介绍等信息进行索引存储。
+
+MinIO中存储了课程的静态化页面文件（html网页），查看课程详情是通过文件系统去浏览课程详情页面。
+
+
+
+
+
+
+
+#### 5.4.2 分布式事务技术方案
+
+##### 5.4.2.1 什么是分布式事务
+
+一次课程发布操作需要向数据库、redis、elasticsearch、MinIO写四份数据，这里存在分布式事务问题。
+
+什么是分布式事务？
+
+首先理解什么是本地事务？
+
+平常我们在程序中通过spring去控制事务是利用数据库本身的事务特性来实现的，因此叫数据库事务，由于应用主要靠关系数据库来控制事务，此数据库只属于该应用，所以基于本应用自己的关系型数据库的事务又被称为本地事务。 
+
+本地事务具有ACID四大特性，数据库事务在实现时会将一次事务涉及的所有操作全部纳入到一个不可分割的执行单元，该执行单元中的所有操作 要么都成功，要么都失败，只要其中任一操作执行失败，都将导致整个事务的回滚。 
+
+理解了本地事务，什么是分布式事务？
+
+现在的需求是课程发布操作后将数据写入数据库、redis、elasticsearch、MinIO四个地方，这四个地方已经不限制在一个数据库内，是由四个分散的服务去提供，与这四个服务去通信需要网络通信，而网络存在不可到达性，这种分布式系统环境下，通过与不同的服务进行网络通信去完成事务称之为**分布式事务。**
+
+在分布式系统中分布式事务的场景很多：
+
+例如用户注册送积分，银行转账，创建订单减库存，这些都是分布式事务。
+
+拿转账举例：
+
+我们知道本地事务依赖数据库本身提供的事务特性来实现，因此以下逻辑可以控制本地事务： 
+
+```shell
+begin transaction； 
+//1.本地数据库操作：张三减少金额 
+//2.本地数据库操作：李四增加金额 
+commit transation; 
+
+```
+
+但是在分布式环境下，会变成下边这样：
+
+```shell
+begin transaction； 
+//1.本地数据库操作：张三减少金额 
+//2.远程调用：让李四增加金额 
+
+commit transation;
+
+
+```
+
+这里存在的远程调用,可能访问的都不是同一个数据库,那么居于单机mysql的innodb事务控制无法生效.
+
+可以设想，当远程调用让李四增加金额成功了，由于网络问题远程调用并没有返回，此时本地事务提交失败就回滚了张三减少金额的操作，此时张三和李四的数据就不一致了。 
+
+因此在分布式架构的基础上，传统数据库事务就无法使用了，张三和李四的账户不在一个数据库中甚至不在一个应 用系统里，实现转账事务需要通过远程调用，由于网络问题就会导致分布式事务问题。 
+
+下边的场景都会产生分布式事务：
+
+微服务架构下：
+
+![image-20230326163431542](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230326163431542.png)
+
+
+
+单服务多数据库：
+
+![image-20230326163532370](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230326163532370.png)
+
+多服务单数据库:
+
+![image-20230326163545831](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230326163545831.png)
+
+##### 5.4.2.2 什么是CAP理论
+
+控制分布式事务首先需要理解CAP理论，什么是==CAP==理论？
+
+CAP是 Consistency、Availability、Partition tolerance三个词语的缩写，分别表示一致性、可用性、分区容忍性。
+
+使用下边的分布式系统结构 进行说明：
+
+![image-20230326164219953](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230326164219953.png)
+
+客户端经过网关访问用户服务的两个结点，一致性是指用户不管访问哪一个结点拿到的数据都是最新的，比如查询小明的信息，不能出现在数据没有改变的情况下两次查询结果不一样。
+
+可用性是指任何时候查询用户信息都可以查询到结果，但不保证查询到最新的数据。
+
+分区容忍性也叫分区容错性，当系统采用分布式架构时由于网络通信异常导致请求中断、消息丢失，但系统依然对外提供服务。
+
+CAP理论要强调的是在分布式系统中这三点不可能全部满足，由于是分布式系统就要满足分区容忍性，因为服务之间难免出现网络异常，不能因为局部网络异常导致整个系统不可用。
+
+满足P那么C和A不能同时满足：
+
+比如我们添加一个用户小明的信息，该信息先添加到结点1中，再同步到结点2中，如下图：
+
+![image-20230326164332200](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/2023-3/image-20230326164332200.png)
+
+如果要满足C一致性，必须等待小明的信息同步完成系统才可用（否则会出现请求到结点2时查询不到数据，违反了一致性），在信息同步过程中系统是不可用的，所以满足C的同时无法满足A。
+
+如果要满足A可用性，要时刻保证系统可用就不用等待信息同步完成，此时系统的一致性无法满足。
+
+ 
+
+所以在分布式系统中进行分布式事务控制，要么保证CP、要么保证AP。
+
+##### 5.4.2.3 分布式事务控制方案
+
+==学习了CAP理论该如何控制分布式事务呢？==
+
+学习了CAP理论我们知道进行分布式事务控制要在C和A中作出取舍，保证一致性就不要保证可用性，保证可用性就不要保证一致，首先你确认是要CP还是AP，具体要根据应用场景进行判断。
+
+CP的场景：满足C舍弃A，强调一致性。
+
+跨行转账：一次转账请求要等待双方银行系统都完成整个事务才算完
+
+
+
+成，只要其中一个失败另一方执行回滚操作。
+
+开户操作：在业务系统开户同时要在运营商开户，任何一方开户失败该用户都不可使用，所以要满足CP。
+
+AP的场景：满足A舍弃C，强调可用性。
+
+订单退款，今日退款成功，明日账户到账，只要用户可以接受在一定时间内到账即可。
+
+注册送积分，注册成功积分在24分到账。
+
+支付短信通信，支付成功发短信，短信发送可以有延迟，甚至没有发送成功。
+
+在实际应用中符合AP的场景较多，其实虽然AP舍弃C一致性，实际上最终数据还是达到了一致，也就满足了最终一致性，所以业界定义了BASE理论。
+
+
+
+==什么是BASE理论？==
+
+BASE 是 Basically Available(基本可用)、Soft state(软状态)和 Eventually consistent (最终一致性)三个短语的缩写。
+
+基本可用：当系统无法满足全部可用时保证核心服务可用即可，比如一个外卖系统，每到中午12点左右系统并发量很高，此时要保证下单流程涉及的服务可用，其它服务暂时不可用。
+
+软状态：是指可以存在中间状态，比如：打印自己的社保统计情况，该操作不会立即出现结果，而是提示你打印中，请在XXX时间后查收。虽然出现了中间状态，但最终状态是正确的。
+
+最终一致性：退款操作后没有及时到账，经过一定的时间后账户到账，舍弃强一致性，满足最终一致性。
+
+==分布式事务控制有哪些常用的技术方案？==
+
+实现CP就是要实现强一致性:
+
+使用Seata框架基于AT模式实现
+
+使用Seata框架基于TCC模式实现。
+
+实现AP则要保证最终数据一致性:
+
+使用消息队列通知的方式去实现，通知失败自动重试，达到最大失败次数需要人工处理；
+
+使用任务调度的方案，启动任务调度将课程信息由数据库同步到elasticsearch、MinIO、redis中。
+
+
+
+
+
+##### 5.4.2.4 课程发布的事务控制方案
+
+==学习了这么多的理论，回到课程发布，执行课程发布操作后要向数据库、redis、elasticsearch、MinIO写四份数据，这个场景用哪种方案？==
+
+ 
+
+满足CP？
+
+如果要满足CP就表示课程发布操作后向数据库、redis、elasticsearch、MinIO写四份数据，只要有一份写失败其它的全部回滚。
+
+满足AP？
+
+课程发布操作后，先更新数据库中的课程发布状态，更新后向redis、elasticsearch、MinIO写课程信息，只要在一定时间内最终向redis、elasticsearch、MinIO写数据成功即可。
+
+目前我们已经有了任务调度的技术积累，这里选用任务调度的方案去实现分布式事务控制，课程发布满足AP即可。
+
+下图是具体的技术方案：
+
+![image-20230326165620999](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/efe13434674b87397e02d3fcf3ba5b74.png)
+
+1、在内容管理服务的数据库中添加一个消息表，消息表和课程发布表在同一个数据库。
+
+2、点击课程发布通过本地事务向课程发布表写入课程发布信息，同时向消息表写课程发布的消息。通过数据库进行控制，只要课程发布表插入成功消息表也插入成功，消息表的数据就记录了某门课程发布的任务。
+
+3、启动任务调度系统定时调度内容管理服务去定时扫描消息表的记录。
+
+4、当扫描到课程发布的消息时即开始完成向redis、elasticsearch、MinIO同步数据的操作。
+
+5、同步数据的任务完成后删除消息表记录。
+
+时序图如下：
+
+下图是课程发布操作的流程
+
+![image-20230326170818255](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/aa5550cfd75fe10d246b4e7baba5d874.png)
+
+1、执行发布操作，内容管理服务存储课程发布表的同时向消息表添加一条“课程发布任务”。这里使用本地事务保证课程发布信息保存成功，同时消息表也保存成功。
+
+2、任务调度服务定时调度内容管理服务扫描消息表，由于课程发布操作后向消息表插入一条课程发布任务，此时扫描到一条任务。
+
+3、拿到任务开始执行任务，分别向redis、elasticsearch及文件系统存储数据。
+
+4、任务完成后删除消息表记录。
+
+
+
+#### 5.4.3 课程发布接口
+
+##### 5.4.3.1 接口定义
+
+根据课程发布的分布式事务控制方案，课程发布操作首先通过本地事务向课程发布表写入课程发布信息并向消息表插入一条消息，这里定义的课程发布接口要实现该功能。
+
+在内容管理接口工程中定义课程发布接口。
+
+```java
+ * @description 课程预览，发布
+ * @author Mr.M
+ * @date 2022/9/16 14:48
+ * @version 1.0
+ */
+@Api(value = "课程预览发布接口",tags = "课程预览发布接口")
+@Controller
+public class CoursePublishController {
+...
+ @ApiOperation("课程发布")
+ @ResponseBody
+ @PostMapping ("/coursepublish/{courseId}")
+public void coursepublish(@PathVariable("courseId") Long courseId){
+
+}
+
+```
+
+
+
+##### 5.4.3.2 接口开发
+
+###### 5.4.3.2.1 DAO开发
+
+课程发布操作对数据库操作如下：
+
+1、向课程发布表course_publish插入一条记录,记录来源于课程预发布表，如果存在则更新，发布状态为：已发布。
+
+2、更新course_base表的课程发布状态为：已发布
+
+3、删除课程预发布表的对应记录。
+
+4、向mq_message消息表插入一条消息，消息类型为：course_publish
+
+约束：
+
+1、课程审核通过方可发布。
+
+2、本机构只允许发布本机构的课程。
+
+
+
+以上功能使用自动生成的mapper接口即可完成。
+
+1、在内容管理数据库创建mq_message消息表及消息历史消息表（历史表存储已经完成的消息）。
+
+![image-20230326194456600](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/0921dfec11fb9094d06b3290ee8ee3c0.png)
+
+
+
+![image-20230326194526752](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/cf9f4cb309c10cfa2db7fed92ffe10f1.png)
+
+
+
+2、生成mq_message消息表、course_publish课程发布表的po和mapper接口
+
+稍后会开发一个通用的消息处理组件，这里先不生成代码。
+
+![image-20230326195006814](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/2087b8c6cb10001edfa38fdadf49dc1e.png)
+
+
+
+###### 5.4.3.2.1 service开发
+
+```java
+/**
+     * @description 课程发布
+     * @param courseId  课程id
+     * @return void
+     * @author: woldier
+     * @date: 2023/3/26 17:25
+     */
+     void coursePublish(Long companyId,Long courseId) throws XueChengPlusException;
+```
+
+```java
+/**
+     * @description 课程发布
+     * @param courseId  课程id
+     * @return void
+     * @author: woldier
+     * @date: 2023/3/26 17:25
+     */
+    @Override
+    @Transactional()
+    public void coursePublish(Long companyId,Long courseId) throws XueChengPlusException {
+        /**
+         * 1. 判断课程预发布表的审核状态,若不为审核通过不允许发布课程
+         * 2. 在课程预发布表中status字段指的是课程审核状态,而在课程发布表中的status字段指的是课程的发布状态,因此我们需要修改status字段
+         * 3. 设置课程基本信息表的课程发布状态为已发布
+         * 4. 将课程发布任务写入的消息表(用于同步redis,elasticsearch,minio)
+         */
+        // 查询课程预发布信息
+        CoursePublishPre coursePublishPre = coursePublishPreService.getById(courseId);
+        //判断是否是本机构课程
+
+        if(!    coursePublishPre.getCompanyId().equals(companyId))
+            XueChengPlusException.cast("只允许提交本机构的课程");
+        // 判断审核状态
+        if(!coursePublishPre.getStatus().equals(CourseAuditStatus.AUDIT.getCode()))
+            XueChengPlusException.cast("当前课程审核状态不是审核通过");
+
+
+        // 对象拷贝,设置coursePublish的status字段
+        CoursePublish coursePublish = new CoursePublish();
+        BeanUtils.copyProperties(coursePublishPre,coursePublish);
+        coursePublish.setStatus(CourseStatus.PUBLISHED.getCode());
+        //保存课程发布表
+        this.saveOrUpdate(coursePublish);
+
+        //更新课程表的状态
+        CourseBase courseBase = new CourseBase();
+        courseBase.setId(courseId);
+        courseBase.setStatus(CourseStatus.NOT_PUBLISH.getCode());
+        courseBaseMapper.updateById(courseBase);
+        //删除课程预发布表
+        coursePublishPreService.removeById(courseId);
+        //写入事务信息到消息表同步信息
+        CoursePublishService proxy = (CoursePublishService)AopContext.currentProxy();
+        proxy.saveCoursePublishMessage(courseId);
+    }
+
+
+    /**
+    * @description TODO 课程发布成功写入消息表
+    * @param courseId
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/26 20:15
+    */
+    @Override
+    @Transactional
+    public void saveCoursePublishMessage(Long courseId){
+
+
+    }
+```
+
+
+
+###### 5.4.3.2.1 接口完善
+
+```java
+```
+
+
+
+###### 5.4.3.2.1 测试
+
+
+
+#### 5.4.4 消息处理SDK
+
+
+
 
 
 ```
