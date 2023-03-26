@@ -60,8 +60,8 @@ public class CoursePublishController {
     @ApiOperation("课程发布")
     @ResponseBody
     @PostMapping ("/coursepublish/{courseId}")
-    public void coursepublish(@PathVariable("courseId") Long courseId){
-
+    public void coursepublish(@PathVariable("courseId") Long courseId) throws XueChengPlusException {
+        coursePublishService.coursePublish(1232141425L,courseId);
     }
 
 }
