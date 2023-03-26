@@ -3,12 +3,10 @@ package com.xuecheng.content.api;
 import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.content.service.CoursePublishPreCustomService;
 import com.xuecheng.content.service.CoursePublishService;
+import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 
 /**
@@ -51,6 +49,19 @@ public class CoursePublishController {
     public void commitAudit(@PathVariable("courseId") Long courseId) throws XueChengPlusException {
 
         coursePublishPreCustomService.commitAudit(1232141425L,courseId);
+    }
+    /**
+    * @description 课程发布
+    * @param courseId 课程id
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/26 17:22
+    */
+    @ApiOperation("课程发布")
+    @ResponseBody
+    @PostMapping ("/coursepublish/{courseId}")
+    public void coursepublish(@PathVariable("courseId") Long courseId){
+
     }
 
 }

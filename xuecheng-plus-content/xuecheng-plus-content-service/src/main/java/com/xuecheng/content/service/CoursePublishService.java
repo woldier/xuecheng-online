@@ -21,5 +21,15 @@ public interface CoursePublishService extends IService<CoursePublish> {
     * @author: woldier
     * @date: 2023/3/16 18:45
     */
-    public CoursePreviewDto getCoursePreviewInfo(Long courseId) throws XueChengPlusException;
+     CoursePreviewDto getCoursePreviewInfo(Long courseId) throws XueChengPlusException;
+
+
+     /**
+     * @description 课程发布
+     * @param courseId  课程id
+     * @return void
+     * @author: woldier
+     * @date: 2023/3/26 17:25
+     */
+     void coursePublish(Long companyId,Long courseId) throws XueChengPlusException;
 }
