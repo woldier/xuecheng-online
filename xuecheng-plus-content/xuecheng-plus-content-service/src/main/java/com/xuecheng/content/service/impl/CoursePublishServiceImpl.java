@@ -15,6 +15,7 @@ import com.xuecheng.content.model.po.CoursePublish;
 import com.xuecheng.content.model.po.CoursePublishPre;
 import com.xuecheng.content.service.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -34,7 +35,6 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
     private final CoursePublishPreService coursePublishPreService;
     private final CourseBaseInfoService courseBaseInfoService;
     private final TeachplanService teachplanService;
-
     private final CourseBaseMapper courseBaseMapper;
     /**
      * @description 获取课程预览所需要的信息
@@ -67,7 +67,7 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
      * @date: 2023/3/26 17:25
      */
     @Override
-    @Transactional(propagation= Propagation.MANDATORY)
+    @Transactional()
     public void coursePublish(Long companyId,Long courseId) throws XueChengPlusException {
         /**
          * 1. 判断课程预发布表的审核状态,若不为审核通过不允许发布课程
@@ -101,7 +101,23 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
         //删除课程预发布表
         coursePublishPreService.removeById(courseId);
         //写入事务信息到消息表同步信息
+        CoursePublishService proxy = (CoursePublishService)AopContext.currentProxy();
+        proxy.saveCoursePublishMessage(courseId);
+    }
+
+
+    /**
+    * @description TODO 课程发布成功写入消息表
+    * @param courseId
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/26 20:15
+    */
+    @Override
+    @Transactional
+    public void saveCoursePublishMessage(Long courseId){
 
 
     }
+
 }
