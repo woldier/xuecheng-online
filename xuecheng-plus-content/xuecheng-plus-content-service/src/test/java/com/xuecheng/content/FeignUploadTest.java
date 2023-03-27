@@ -1,5 +1,6 @@
 package com.xuecheng.content;
 
+import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.content.config.MultipartSupportConfig;
 import com.xuecheng.content.feignclient.MediaServiceClient;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,7 @@ public class FeignUploadTest {
 
     //远程调用，上传文件
     @Test
-    public void test() {
+    public void test() throws XueChengPlusException {
     
         MultipartFile multipartFile = MultipartSupportConfig.getMultipartFile(new File("D:\\java_lesson\\11.html"));
         mediaServiceClient.uploadHtml(multipartFile,"12.html");
