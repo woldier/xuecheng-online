@@ -111,7 +111,7 @@ public class MediaFilesController {
             @RequestPart("filedata") MultipartFile upload,
             @RequestParam(value = "objectName", required = false) String objectName) throws IOException {
         File tempFile = getTempFile(upload);
-        mediaFileService.uploadCourseHtml(tempFile.getAbsolutePath(),"course/"+ objectName);
+        mediaFileService.uploadObject(tempFile.getAbsolutePath(),"course/"+ objectName);
         boolean delete = tempFile.delete();
         if (!delete)
             log.error("删除文件错误{}", tempFile.getAbsolutePath());

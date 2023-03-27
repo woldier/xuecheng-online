@@ -142,10 +142,10 @@ public interface MediaFileService extends IService<MediaFiles> {
      * @param localFilePath 临时文件路径
      * @param objectName    网页名
      * @return void
-     * @description 上传课程静态化网页
+     * @description 上传文件对象名
      * @author: woldier
      * @date: 2023/3/27 15:31
      */
 
-    void uploadCourseHtml(String localFilePath, String objectName);
+    void uploadObject(String localFilePath, String objectName);
 }

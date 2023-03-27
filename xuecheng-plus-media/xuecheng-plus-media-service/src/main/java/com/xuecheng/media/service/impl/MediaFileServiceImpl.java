@@ -604,7 +604,7 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
      * @date: 2023/3/27 15:31
      */
     @Override
-    public void uploadCourseHtml(String localFilePath, String objectName) {
+    public void uploadObject(String localFilePath, String objectName) {
         //所有的静态文件都存在course文件夹下
         minIOUpload(localFilePath, getMimeType(objectName), fileBucket, objectName);
     }
