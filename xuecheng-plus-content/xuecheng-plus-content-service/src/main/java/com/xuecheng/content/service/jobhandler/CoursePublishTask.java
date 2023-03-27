@@ -1,15 +1,19 @@
 package com.xuecheng.content.service.jobhandler;
 
+import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.service.CoursePublishService;
 import com.xuecheng.messagesdk.model.po.MqMessage;
 import com.xuecheng.messagesdk.service.MessageProcessAbstract;
 import com.xuecheng.messagesdk.service.MqMessageService;
 import com.xuecheng.messagesdk.service.impl.MqMessageServiceImpl;
 import com.xxl.job.core.context.XxlJobHelper;
 import com.xxl.job.core.handler.annotation.XxlJob;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -20,6 +24,7 @@ import java.util.concurrent.TimeUnit;
  **/
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class CoursePublishTask extends MessageProcessAbstract {
 
     /**
@@ -29,6 +34,7 @@ public class CoursePublishTask extends MessageProcessAbstract {
      * @date: 2023/3/27 11:09
      */
 
+    private final CoursePublishService coursePublishService;
     @XxlJob("CoursePublishJobHandler") //任务名
     public void coursePublishJobHandler() throws Exception {
         // 分片参数
@@ -57,9 +63,9 @@ public class CoursePublishTask extends MessageProcessAbstract {
         //执行阶段1 ,静态化页面
         generateCourseHtml(mqMessage,courseId);
         //执行阶段2 , 写入 elasticsearch
-
+        saveCourseIndex(mqMessage,courseId);
         //执行阶段3 , 写入redis
-
+        saveCourseCache(mqMessage,courseId);
 
         return true;
     }
@@ -78,13 +84,17 @@ public class CoursePublishTask extends MessageProcessAbstract {
             log.debug("课程静态化已处理直接返回，课程id:{}", courseId);
             return;
         }
-        // TODO 静态化业务逻辑
+        //生成静态页面
         try {
-
-            TimeUnit.SECONDS.sleep(10);
-        } catch (InterruptedException e) {
+            File file = coursePublishService.generateCourseHtml(courseId);
+            coursePublishService.uploadCourseHtml(courseId,file);
+            file.delete();
+        } catch (XueChengPlusException e) {
+            log.error("静态化页面出错");
             throw new RuntimeException(e);
         }
+
+
         //保存第一阶段状态
         mqMessageService.completedStageOne(id);
 
