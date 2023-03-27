@@ -13108,19 +13108,727 @@ public void coursepublish(@PathVariable("courseId") Long courseId){
 ###### 5.4.3.2.1 接口完善
 
 ```java
+ /**
+    * @description 课程发布
+    * @param courseId 课程id
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/26 17:22
+    */
+    @ApiOperation("课程发布")
+    @ResponseBody
+    @PostMapping ("/coursepublish/{courseId}")
+    public void coursepublish(@PathVariable("courseId") Long courseId) throws XueChengPlusException {
+        coursePublishService.coursePublish(1232141425L,courseId);
+    }
+
 ```
 
 
 
-###### 5.4.3.2.1 测试
+##### 5.4.3.3 测试
+
+先使用httpclient方法测试：
+
+```http
+### 课程发布
+POST {{content_host}}/content/coursepublish/2
+
+```
+
+先测试约束条件：
+
+1、在未提交审核时进行课程发布测试。
+
+2、在课程未审核通过时进行发布。
+
+正常流程测试：
+
+1、提交审核课程
+
+2、手动修改课程预发布表与课程基本信息的审核状态为审核通过。
+
+3、执行课程发布
+
+4、观察课程发布表记录是否正常，课程预发布表记录已经删除，课程基本信息表与课程发布表的发布状态为”发布“。
+
+使用前后端联调方式测试。
 
 
 
 #### 5.4.4 消息处理SDK
 
+##### 5.4.4.1 消息模块技术方案
+
+课程发布操作执行后需要扫描消息表的记录，有关消息表处理的有哪些？
+
+![image-20230327082321225](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/a5e79aed7c2ab7ecb6200a9900b7a0de.png)
 
 
 
+上图中红色框内的都是与消息处理相关的操作：
+
+1、新增消息表
+
+2、扫描消息表。
+
+3、更新消息表。
+
+4、删除消息表。
+
+使用消息表这种方式实现最终事务一致性的地方除了课程发布还有其它业务场景。
+
+![image-20230327082405869](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/ca424ed02979bf505d8852a53a7765e6.png)
+
+
+
+如果在每个地方都实现一套针对消息表定时扫描、处理的逻辑基本上都是重复的，软件的可复用性太低，成本太高。
+
+如何解决这个问题？
+
+针对这个问题可以想到将消息处理相关的逻辑做成一个通用的东西。
+
+是做成通用的服务，还是做成通用的代码组件呢？
+
+通用的服务是完成一个通用的独立功能，并提供独立的网络接口，比如：项目中的文件系统服务，提供文件的分布式存储服务。
+
+代码组件也是完成一个通用的独立功能，通常会提供API的方式供外部系统使用，比如：fastjson、Apache commons工具包等。
+
+如果将消息处理做成一个通用的服务，该服务需要连接多个数据库，因为它要扫描微服务数据库下的消息表，并且要提供与微服务通信的网络接口，单就针对当前需求而言开发成本有点高。
+
+如果将消息处理做一个SDK工具包相比通用服务不仅可以解决将消息处理通用化的需求，还可以降低成本。
+
+所以，本项目确定将对消息表相关的处理做成一个SDK组件供各微服务使用,如下图所示：
+
+![image-20230327082528857](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/5c7f9c68475337940e7f1535d91c8115.png)
+
+
+
+下边对消息SDK的设计内容进行说明：
+
+==sdk需要提供执行任务的逻辑吗？==
+
+拿课程发布任务举例，执行课程发布任务是要向redis、索引库等同步数据，其它任务的执行逻辑是不同的，所以执行任务在sdk中不用实现任务逻辑，只需要提供一个抽象方法由具体的执行任务方去实现。
+
+==如何保证任务的幂等性？==
+
+在视频处理章节介绍的视频处理的幂等性方案，这里可以采用类似方案，任务执行完成后会从消息表删除，如果消息的状态是完成或不存在消息表中则不用执行。
+
+==如何保证任务不重复执行？==
+
+采用和视频处理章节一致方案，除了保证任务的幂等性外，任务调度采用分片广播，根据分片参数去获取任务，另外阻塞调度策略为丢弃任务。
+
+注意：这里是信息同步类任务，即使任务重复执行也没有关系，不再使用抢占任务的方式保证任务不重复执行。
+
+还有一个问题，根据消息表记录是否存在或消息表中的任务状态去保证任务的幂等性，如果一个任务有好几个小任务，比如：课程发布任务需要执行三个同步操作：存储课程到redis、存储课程到索引库，存储课程页面到文件系统。如果其中一个小任务已经完成也不应该去重复执行。这里该如何设计？
+
+
+
+将小任务作为任务的不同的阶段，在消息表中设计阶段状态。
+
+![image-20230327083625926](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/58f1c4e9a920e71a9c147e7ece888965.png)
+
+
+
+每完成一个阶段在相应的阶段状态字段打上完成标记，即使这个大任务没有完成再重新执行时，如果小阶段任务完成了也不会重复执行某个小阶段的任务。
+
+综上所述，除了消息表的基本的增、删、改、查的接口外，消息SDK还具有如下接口功能：
+
+```java
+package com.xuecheng.messagesdk.service;
+
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.xuecheng.messagesdk.model.po.MqMessage;
+
+import java.util.List;
+
+/**
+ * <p>
+ *  服务类
+ * </p>
+ *
+ * @author Mr.M
+ * @since 2022-09-21
+ */
+public interface MqMessageService extends IService<MqMessage> {
+
+    /**
+     * @description 扫描消息表记录，采用与扫描视频处理表相同的思路
+     * @param shardIndex 分片序号
+     * @param shardTotal 分片总数
+     * @param count 扫描记录数
+     * @return java.util.List 消息记录
+     * @author Mr.M
+     * @date 2022/9/21 18:55
+     */
+    public List<MqMessage> getMessageList(int shardIndex, intshardTotal,  String messageType,int count);
+
+    /**
+     * @description 完成任务
+     * @param id 消息id
+     * @return int 更新成功：1
+     * @author Mr.M
+     * @date 2022/9/21 20:49
+     */
+    public int completed(long id);
+
+    /**
+     * @description 完成阶段任务
+     * @param id 消息id
+     * @return int 更新成功：1
+     * @author Mr.M
+     * @date 2022/9/21 20:49
+     */
+    public int completedStageOne(long id);
+    public int completedStageTwo(long id);
+    public int completedStageThree(long id);
+    public int completedStageFour(long id);
+
+    /**
+     * @description 查询阶段状态
+     * @param id
+     * @return int
+     * @author Mr.M
+     * @date 2022/9/21 20:54
+    */
+    public int getStageOne(long id);
+    public int getStageTwo(long id);
+    public int getStageThree(long id);
+    public int getStageFour(long id);
+
+}
+
+```
+
+消息SDK提供消息处理抽象类，此抽象类供使用方去继承使用，如下：
+
+```java
+package com.xuecheng.messagesdk.service;
+
+import com.xuecheng.messagesdk.model.po.MqMessage;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.List;
+import java.util.concurrent.*;
+
+/**
+ * @author Mr.M
+ * @version 1.0
+ * @description 消息处理抽象类
+ * @date 2022/9/21 19:44
+ */
+@Slf4j
+@Data
+public abstract class MessageProcessAbstract {
+
+    @Autowired
+    MqMessageService mqMessageService;
+
+
+    /**
+     * @param mqMessage 执行任务内容
+     * @return boolean true:处理成功，false处理失败
+     * @description 任务处理
+     * @author Mr.M
+     * @date 2022/9/21 19:47
+     */
+    public abstract boolean execute(MqMessage mqMessage);
+
+
+    /**
+     * @description 扫描消息表多线程执行任务
+     * @param shardIndex 分片序号
+     * @param shardTotal 分片总数
+     * @param messageType  消息类型
+     * @param count  一次取出任务总数
+     * @param timeout 预估任务执行时间,到此时间如果任务还没有结束则强制结束 单位秒
+     * @return void
+     * @author Mr.M
+     * @date 2022/9/21 20:35
+    */
+    public void process(int shardIndex, int shardTotal,  String messageType,int count,long timeout) {
+
+        try {
+            //扫描消息表获取任务清单
+            List<MqMessage> messageList = mqMessageService.getMessageList(shardIndex, shardTotal,messageType, count);
+            //任务个数
+            int size = messageList.size();
+            log.debug("取出待处理消息"+size+"条");
+            if(size<=0){
+                return ;
+            }
+
+            //创建线程池
+            ExecutorService threadPool = Executors.newFixedThreadPool(size);
+            //计数器
+            CountDownLatch countDownLatch = new CountDownLatch(size);
+            messageList.forEach(message -> {
+                threadPool.execute(() -> {
+                    log.debug("开始任务:{}",message);
+                    //处理任务
+                    try {
+                        boolean result = execute(message);
+                        if(result){
+                            log.debug("任务执行成功:{})",message);
+                            //更新任务状态,删除消息表记录,添加到历史表
+                            int completed = mqMessageService.completed(message.getId());
+                            if (completed>0){
+                                log.debug("任务执行成功:{}",message);
+                            }else{
+                                log.debug("任务执行失败:{}",message);
+                            }
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        log.debug("任务出现异常:{},任务:{}",e.getMessage(),message);
+                    }finally {
+                        //计数
+                        countDownLatch.countDown();
+                    }
+                    log.debug("结束任务:{}",message);
+
+                });
+            });
+
+            //等待,给一个充裕的超时时间,防止无限等待，到达超时时间还没有处理完成则结束任务
+            countDownLatch.await(timeout,TimeUnit.SECONDS);
+            System.out.println("结束....");
+        } catch (InterruptedException e) {
+           e.printStackTrace();
+
+        }
+
+
+    }
+
+
+
+}
+
+```
+
+
+
+
+
+##### 5.4.4.2 消息模块sdk测试
+
+1、在内容管理数据库创建消息表和消息历史表
+
+![image-20230327090551682](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/04e63f2eafbb6ac3f1373786034f6c28.png)
+
+2、拷贝课程资料中的xuecheng-plus-message-sdk到工程目录，如下图：
+
+![image-20230327090851719](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/2626c3c1e081aa3bf6b96e89ced32270.png)
+
+3、修改test下的bootstrap.yml中的数据库连接
+
+下边测试消息SDK的接口：
+
+1、继承MessageProcessAbstract 抽象类编写任务执行方法
+
+```java
+package com.xuecheng.messagesdk;
+
+import com.xuecheng.messagesdk.model.po.MqMessage;
+import com.xuecheng.messagesdk.service.MessageProcessAbstract;
+import com.xuecheng.messagesdk.service.MqMessageService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+/**
+ * @description 消息处理测试类，继承MessageProcessAbstract
+ * @author Mr.M
+ * @date 2022/9/21 21:44
+ * @version 1.0
+ */
+@Slf4j
+@Component
+public class MessageProcessClass extends MessageProcessAbstract {
+
+
+    @Autowired
+    MqMessageService mqMessageService;
+
+    //执行任务
+    @Override
+    public boolean execute(MqMessage mqMessage) {
+        Long id = mqMessage.getId();
+        log.debug("开始执行任务:{}",id);
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        //取出阶段状态
+        int stageOne = mqMessageService.getStageOne(id);
+        if(stageOne<1){
+            log.debug("开始执行第一阶段任务");
+            System.out.println();
+            int i = mqMessageService.completedStageOne(id);
+            if(i>0){
+                log.debug("完成第一阶段任务");
+            }
+
+        }else{
+            log.debug("无需执行第一阶段任务");
+        }
+
+        return true;
+    }
+}
+
+```
+
+3、准备测试数据，在消息表添加消息类型为"test"的消息
+
+4、执行MessageProcessClassTest 类中的test()方法，观察控制台任务执行的日志信息。
+
+##### 5.4.4.3 集成消息sdk
+
+###### 5.4.4.3.1 添加消息
+
+在内容管理service工程中添加sdk依赖
+
+```xml
+<dependency>
+    <groupId>com.xuecheng</groupId>
+    <artifactId>xuecheng-plus-message-sdk</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+</dependency>
+
+```
+
+程发布操作使用本地事务保存课程发布信息、添加消息表。
+
+回到当初编写课程发布时的代码，如下
+
+![image-20230327100643557](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/c792cfa400fb3c86d1fd577bcc5f37f1.png)
+
+```java
+ /**
+    * @description TODO 课程发布成功写入消息表
+    * @param courseId
+    * @return void
+    * @author: woldier
+    * @date: 2023/3/26 20:15
+    */
+    @Override
+    @Transactional
+    public void saveCoursePublishMessage(Long courseId) throws XueChengPlusException {
+
+        MqMessage mqMessage = mqMessageService.addMessage("course_publish", String.valueOf(courseId), null, null);
+        if(mqMessage==null){
+            XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
+        }
+
+    }
+```
+
+下边进行测试：
+
+发布一门课程，观察消息表是否正常添加消息。
+
+需要手动修改课程审核状态为审核通过执行发布操作，发布后可以修改发布状态为下架重新发布测试。
+
+
+
+###### 5.4.4.3.2 课程发布任务处理
+
+在内容管理服务添加消息处理sdk的依赖即可使用它，实现sdk中的MessageProcessAbstract类，重写execte方法。
+
+实现sdk中的MessageProcessAbstract类：
+
+```java
+package com.xuecheng.content.service.jobhandler;
+
+import com.xuecheng.messagesdk.model.po.MqMessage;
+import com.xuecheng.messagesdk.service.MessageProcessAbstract;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description 课程发布任务实现类
+ * @date 2023/3/27 10:27
+ **/
+public class CoursePublishTask extends MessageProcessAbstract {
+    /**
+    * @description 任务执行
+    * @param mqMessage
+    * @return boolean
+    * @author: woldier
+    * @date: 2023/3/27 10:28
+    */
+    @Override
+    public boolean execute(MqMessage mqMessage) {
+        //消息id
+        Long id = mqMessage.getId();
+        //取出对应的course 这里我们约定课程id存在于message表的 businessKey1 字段
+        Integer courseId = Integer.valueOf(mqMessage.getBusinessKey1());
+
+        //执行阶段1 ,静态化页面
+
+        //执行阶段2 , 写入 elasticsearch
+
+        //执行阶段3 , 写入redis
+
+
+
+        return true;
+    }
+      //生成课程静态化页面并上传至文件系统
+    public void generateCourseHtml(MqMessage mqMessage, long courseId) {
+
+        log.debug("开始进行课程静态化,课程id:{}", courseId);
+        //消息id
+        Long id = mqMessage.getId();
+        //消息处理的service
+        MqMessageService mqMessageService = this.getMqMessageService();
+        //消息幂等性处理
+        int stageOne = mqMessageService.getStageOne(id);
+        if (stageOne > 0) {
+            log.debug("课程静态化已处理直接返回，课程id:{}", courseId);
+            return;
+        }
+        // TODO 静态化业务逻辑
+        try {
+
+            TimeUnit.SECONDS.sleep(10);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        //保存第一阶段状态
+        mqMessageService.completedStageOne(id);
+
+    }
+
+    //将课程信息缓存至redis
+    public void saveCourseCache(MqMessage mqMessage,long courseId){
+        log.debug("将课程信息缓存至redis,课程id:{}",courseId);
+        // TODO 将课程信息缓存至redis
+        try {
+            TimeUnit.SECONDS.sleep(2);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
+    //保存课程索引信息
+    public void saveCourseIndex(MqMessage mqMessage,long courseId){
+        log.debug("保存课程索引信息,课程id:{}",courseId);
+
+        // TODO 保存课程索引信息
+        try {
+            TimeUnit.SECONDS.sleep(2);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
+}
+
+```
+
+
+
+###### 5.4.4.3.3 开启任务调度
+
+首先在内容管理service工程中添加xxl-job依赖
+
+```xml
+<dependency>
+    <groupId>com.xuxueli</groupId>
+    <artifactId>xxl-job-core</artifactId>
+</dependency>
+
+```
+
+配置执行器
+
+在nacos中在content-service-dev.yaml中配置
+
+```yaml
+xxl:
+  job:
+    admin: 
+      addresses: http://192.168.101.65:8088/xxl-job-admin
+    executor:
+      appname: coursepublish-job
+      address: 
+      ip: 
+      port: 8999
+      logpath: /data/applogs/xxl-job/jobhandler
+      logretentiondays: 30
+    accessToken: default_token
+
+```
+
+从媒资管理服务层工程中拷贝一个XxlJobConfig配置类到内容管理service工程中。
+
+ ```java
+ package com.xuecheng.content.config;
+ 
+ import com.xxl.job.core.executor.impl.XxlJobSpringExecutor;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ import org.springframework.beans.factory.annotation.Value;
+ import org.springframework.context.annotation.Bean;
+ import org.springframework.context.annotation.Configuration;
+ 
+ /**
+  * xxl-job config
+  * xxl-job config类
+  * @author xuxueli 2017-04-28
+  */
+ @Configuration
+ public class XxlJobConfig {
+     private Logger logger = LoggerFactory.getLogger(XxlJobConfig.class);
+ 
+     @Value("${xxl.job.admin.addresses}")
+     private String adminAddresses;
+ 
+     @Value("${xxl.job.accessToken}")
+     private String accessToken;
+ 
+     @Value("${xxl.job.executor.appname}")
+     private String appname;
+ 
+     @Value("${xxl.job.executor.address}")
+     private String address;
+ 
+     @Value("${xxl.job.executor.ip}")
+     private String ip;
+ 
+     @Value("${xxl.job.executor.port}")
+     private int port;
+ 
+     @Value("${xxl.job.executor.logpath}")
+     private String logPath;
+ 
+     @Value("${xxl.job.executor.logretentiondays}")
+     private int logRetentionDays;
+ 
+ 
+     @Bean
+     public XxlJobSpringExecutor xxlJobExecutor() {
+         logger.info(">>>>>>>>>>> xxl-job config init.");
+         XxlJobSpringExecutor xxlJobSpringExecutor = new XxlJobSpringExecutor();
+         xxlJobSpringExecutor.setAdminAddresses(adminAddresses);
+         xxlJobSpringExecutor.setAppname(appname);
+         xxlJobSpringExecutor.setAddress(address);
+         xxlJobSpringExecutor.setIp(ip);
+         xxlJobSpringExecutor.setPort(port);
+         xxlJobSpringExecutor.setAccessToken(accessToken);
+         xxlJobSpringExecutor.setLogPath(logPath);
+         xxlJobSpringExecutor.setLogRetentionDays(logRetentionDays);
+ 
+         return xxlJobSpringExecutor;
+     }
+ 
+     /**
+      * 针对多网卡、容器内部署等情况，可借助 "spring-cloud-commons" 提供的 "InetUtils" 组件灵活定制注册IP；
+      *
+      *      1、引入依赖：
+      *          <dependency>
+      *             <groupId>org.springframework.cloud</groupId>
+      *             <artifactId>spring-cloud-commons</artifactId>
+      *             <version>${version}</version>
+      *         </dependency>
+      *
+      *      2、配置文件，或者容器启动变量
+      *          spring.cloud.inetutils.preferred-networks: 'xxx.xxx.xxx.'
+      *
+      *      3、获取IP
+      *          String ip_ = inetUtils.findFirstNonLoopbackHostInfo().getIpAddress();
+      */
+ 
+ 
+ }
+ ```
+
+
+
+在xxl-job-admin控制台中添加执行器
+
+![image-20230327110542345](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/ac4be71127c1eef4348994ca07810e07.png)
+
+编写任务调度入口
+
+```java
+@Slf4j
+@Component
+public class CoursePublishTask extends MessageProcessAbstract {
+
+    /**
+     * @return void
+     * @description 任务调度入口
+     * @author: woldier
+     * @date: 2023/3/27 11:09
+     */
+
+    @XxlJob("CoursePublishJobHandler") //任务名
+    public void coursePublishJobHandler() throws Exception {
+        // 分片参数
+        int shardIndex = XxlJobHelper.getShardIndex();
+        int shardTotal = XxlJobHelper.getShardTotal();
+        log.debug("shardIndex=" + shardIndex + ",shardTotal=" + shardTotal);
+        //参数:分片序号、分片总数、消息类型、一次最多取到的任务数量、一次任务调度执行的超时时间
+        process(shardIndex, shardTotal, "course_publish", 30, 60);
+    }
+    
+    /*省略implament代码*/
+}
+```
+
+在xxl-job添加任务
+
+![image-20230327111214344](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/e33fddf8b0946e887083401ce53904ed.png)
+
+到此SDK开发、集成完成，下一步添加课程发布后页面静态化、课程缓存、课程索引等任务。
+
+
+
+###### 5.4.4.3.4 测试
+
+在消息表添加课程发布的消息，消息类型为course_publish,business_key1为发布课程的ID
+
+1、测试是否可以正常调度执行。
+
+2、测试任务幂等性
+
+在 saveCourseCache(mqMessage,courseId);处打断点，待执行到这里观察数据库第一阶段完成的标记预期标记为1。
+
+结束进程，再重新启动，观察第一阶段的任务预期不再执行。
+
+3、任务执行完成删除消息表记录，插入历史表，state状态字段为1
+
+#### 5.4.5 页面静态化
+
+##### 5.4.5.1 什么是页面静态化
+
+##### 5.4.5.2 静态化测试
+
+##### 5.4.5.3 上传文件测试
+
+###### 5.4.5.3.1 配置远程调用环境
+
+###### 5.4.5.3.2 扩充上传文件接口
+
+###### 5.4.5.3.3 远程调用测试
+
+##### 5.4.5.4 熔断降级
+
+5.4.5.4.1 什么是熔断降级
+
+5.4.5.4.2 熔断降级处理
+
+##### 5.4.5.5 课程静态化开发
 
 ```
 ### XXX.XXX xxxxxx模块
