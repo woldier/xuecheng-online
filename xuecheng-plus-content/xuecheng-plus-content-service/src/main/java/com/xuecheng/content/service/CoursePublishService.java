@@ -36,12 +36,12 @@ public interface CoursePublishService extends IService<CoursePublish> {
 
 
     /**
-     * @description TODO 课程发布成功写入消息表
+     * @description   课程发布成功写入消息表
      * @param courseId
      * @return void
      * @author: woldier
      * @date: 2023/3/26 20:15
      */
 
-    void saveCoursePublishMessage(Long courseId);
+    void saveCoursePublishMessage(Long courseId) throws XueChengPlusException;
 }
