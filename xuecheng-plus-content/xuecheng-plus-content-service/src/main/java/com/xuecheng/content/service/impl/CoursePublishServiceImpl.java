@@ -3,6 +3,8 @@ package com.xuecheng.content.service.impl;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.xuecheng.base.exception.CommonError;
 import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.config.MultipartSupportConfig;
+import com.xuecheng.content.feignclient.MediaServiceClient;
 import com.xuecheng.content.mapper.CourseBaseMapper;
 import com.xuecheng.content.mapper.CoursePublishMapper;
 import com.xuecheng.content.mapper.CoursePublishPreMapper;
@@ -17,14 +19,26 @@ import com.xuecheng.content.model.po.CoursePublishPre;
 import com.xuecheng.content.service.*;
 import com.xuecheng.messagesdk.model.po.MqMessage;
 import com.xuecheng.messagesdk.service.MqMessageService;
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.io.IOUtils;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.ui.freemarker.FreeMarkerTemplateUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author woldier
@@ -42,6 +56,7 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
 
     private final MqMessageService mqMessageService;
 
+    private final MediaServiceClient mediaServiceClient;
     /**
      * @param courseId 课程id
      * @return com.xuecheng.content.model.dto.CoursePreviewDto
@@ -131,5 +146,96 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
         }
 
     }
+
+    /**
+     * description 生成课程静态化页面
+     *
+     * @param courseId 课程id
+     * @return java.io.File
+     * @author: woldier
+     * @date: 2023/3/27 16:52
+     */
+    @Override
+    public File generateCourseHtml(Long courseId) throws XueChengPlusException {
+        //配置freemarker
+        Configuration configuration = new Configuration(Configuration.getVersion());
+
+        //加载模板
+        //选指定模板路径,classpath下templates下
+        //得到classpath路径
+        String classpath = this.getClass().getResource("/").getPath();
+        try {
+            configuration.setDirectoryForTemplateLoading(new File(classpath + "/templates/"));
+        } catch (IOException e) {
+            log.error("失败,err{}",e.getCause());
+            e.printStackTrace();
+            XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
+        }
+        //设置字符编码
+        configuration.setDefaultEncoding("utf-8");
+
+        //指定模板文件名称
+        Template template = null;
+        try {
+            template = configuration.getTemplate("course_template.ftl");
+        } catch (IOException e) {
+            log.error("加载模板文件失败,{}",e.getCause());
+            e.printStackTrace();
+            XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
+        }
+
+        //准备数据
+        CoursePreviewDto coursePreviewInfo = getCoursePreviewInfo(courseId);
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("model", coursePreviewInfo);
+
+        //静态化
+        //参数1：模板，参数2：数据模型
+        String content = null;
+        try {
+            content = FreeMarkerTemplateUtils.processTemplateIntoString(template, map);
+        } catch (IOException | TemplateException e) {
+            log.error("模型渲染出错");
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+
+        //System.out.println(content);
+        //将静态化内容输出到文件中
+        InputStream inputStream = IOUtils.toInputStream(content);
+        //输出流
+        File tempFile = null;
+        try {
+            tempFile = File.createTempFile("coursehtml",".temp");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try(FileOutputStream outputStream = new FileOutputStream(tempFile)){
+            IOUtils.copy(inputStream, outputStream);
+        }catch (Exception e){
+            log.error("出错了");
+            e.printStackTrace();
+             XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
+        }
+
+        return tempFile;
+    }
+
+    /**
+     * description 上传课程静态化网页到minio
+     *
+     * @param courseId 课程id
+     * @param file     本地静态化html文件
+     * @return void
+     * @author: woldier
+     * @date: 2023/3/27 16:55
+     */
+    @Override
+    public void uploadCourseHtml(Long courseId, File file) throws XueChengPlusException {
+        MultipartFile multipartFile = MultipartSupportConfig.getMultipartFile(file);
+        mediaServiceClient.uploadHtml(multipartFile,courseId.toString()+".html");
+    }
+
 
 }
