@@ -78,14 +78,15 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
     private final MinioClient minioClient;
 
     private final MediaProcessMapper mediaProcessMapper;
+
     @Override
     public PageResult<MediaFiles> queryMediaFiels(Long companyId, PageParams pageParams, QueryMediaParamsDto queryMediaParamsDto) {
 
         //构建查询条件对象
         LambdaQueryWrapper<MediaFiles> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.like(!StringUtils.isEmpty(queryMediaParamsDto.getFilename()),MediaFiles::getFilename,queryMediaParamsDto.getFilename())
-                .eq(!StringUtils.isEmpty(queryMediaParamsDto.getFileType()),MediaFiles::getFileType,queryMediaParamsDto.getFileType())
-                .eq(!StringUtils.isEmpty(queryMediaParamsDto.getAuditStatus()),MediaFiles::getAuditStatus,queryMediaParamsDto.getAuditStatus());
+        queryWrapper.like(!StringUtils.isEmpty(queryMediaParamsDto.getFilename()), MediaFiles::getFilename, queryMediaParamsDto.getFilename())
+                .eq(!StringUtils.isEmpty(queryMediaParamsDto.getFileType()), MediaFiles::getFileType, queryMediaParamsDto.getFileType())
+                .eq(!StringUtils.isEmpty(queryMediaParamsDto.getAuditStatus()), MediaFiles::getAuditStatus, queryMediaParamsDto.getAuditStatus());
         //分页对象
         Page<MediaFiles> page = new Page<>(pageParams.getPageNo(), pageParams.getPageSize());
         // 查询数据内容获得结果
@@ -177,7 +178,7 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
             //url
             //设置url字段需要判断当前的contentType是否为image或者mp4，只有这两种格式才能设置url直接预览
             String mimeType = getMimeType(uploadFileParamsDto.getFilename());//获取文件content-type
-            if(mimeType.contains("image")||mimeType.contains("mp4"))//若为图片或者mp4格式视频设置url
+            if (mimeType.contains("image") || mimeType.contains("mp4"))//若为图片或者mp4格式视频设置url
                 mediaFiles.setUrl("/" + bucket + "/" + objectName);
             //上传时间,更新时间自动设置
             mediaFiles.setCreateDate(LocalDateTime.now());
@@ -190,8 +191,8 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
             int insert = mediaFilesMapper.insert(mediaFiles);
 
             /*
-            * 若为avi格式，则插入转码任务
-            * */
+             * 若为avi格式，则插入转码任务
+             * */
             getAopContextProxy().insertMediaProcessTask(md5, bucket, objectName, mimeType);
 
 
@@ -205,8 +206,8 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
     }
 
     @Transactional(propagation = Propagation.MANDATORY) //设置传播级别为调用本方法的方法必须具有事务
-    public  void insertMediaProcessTask(String md5, String bucket, String objectName, String mimeType) {
-        if("video/x-msvideo".equals(mimeType)){
+    public void insertMediaProcessTask(String md5, String bucket, String objectName, String mimeType) {
+        if ("video/x-msvideo".equals(mimeType)) {
             MediaProcess mediaProcess = new MediaProcess();
             mediaProcess.setBucket(bucket); //设置桶
             mediaProcess.setFilename(objectName); //设置对象名
@@ -293,7 +294,7 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
     private StatObjectResponse getObjStatInMinio(StatObjectArgs statObjectArgs) {
         StatObjectResponse statObjectResponse = null;
         try {
-             statObjectResponse = minioClient.statObject(statObjectArgs);
+            statObjectResponse = minioClient.statObject(statObjectArgs);
         } catch (Exception e) {
             log.debug("获取minio对象信息时出错,bucket{},objectName{},errMsg{}", statObjectArgs.bucket(), statObjectArgs.object(), e.getMessage());
         }
@@ -315,7 +316,7 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
     }
 
     private String getFolderByMd5(String md5) {
-        return md5.charAt(0) + "/" + md5.charAt(1) + "/"+md5+"/";
+        return md5.charAt(0) + "/" + md5.charAt(1) + "/" + md5 + "/";
     }
 
 
@@ -413,14 +414,14 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
         //minio合并,若失败则返回
         if (composeObjectInMinio(videoBucket, objectName, composeSourceList)) RestResponse.success(false);
         long size = -1L;
-        File download = File.createTempFile("download",".temp");//创建一个临时文件
+        File download = File.createTempFile("download", ".temp");//创建一个临时文件
         try (
                 InputStream getObjectResponse = minioClient.getObject(GetObjectArgs.builder().bucket(videoBucket).object(objectName).build()); //minio文件输入流
                 FileOutputStream fileOutputStream = new FileOutputStream(download) //本地文件输出流
-        ){
-            IOUtils.copy(getObjectResponse,fileOutputStream);  //input -> output
+        ) {
+            IOUtils.copy(getObjectResponse, fileOutputStream);  //input -> output
             String downLoadMd5 = DigestUtils.md5Hex(Files.newInputStream(download.toPath())); //得到下载文件的md5值
-            if(!downLoadMd5.equals(md5)) { //如果两个md5值不相同
+            if (!downLoadMd5.equals(md5)) { //如果两个md5值不相同
                 deleteObjInMinio(videoBucket, objectName); //删除对应文件
                 return RestResponse.validfail("合并后的文件md5值与原md5值不一致");
             }
@@ -428,12 +429,11 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
             size = download.length();
             //异步线程将本地文件上传到minio 解决etag不一致问题
 
-            minIOUpload(download.getPath(),getMimeType(fileName),videoBucket,objectName);
+            minIOUpload(download.getPath(), getMimeType(fileName), videoBucket, objectName);
 
         } catch (Exception e) {
             e.printStackTrace();
-        }
-        finally {
+        } finally {
             boolean delete = download.delete(); //删除临时文件
         }
         //md5值相等说明合并分片成功
@@ -446,8 +446,8 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
         uploadFileParamsDto.setFilename(fileName);
         //设置文件大小
         StatObjectResponse objStatInMinio = getObjStatInMinio(videoBucket, objectName); //得到对象信息
-        if (objStatInMinio== null) {
-            log.debug("从minio中获取合并后的文件信息失败,bucket{},objectName{}",videoBucket,objectName);
+        if (objStatInMinio == null) {
+            log.debug("从minio中获取合并后的文件信息失败,bucket{},objectName{}", videoBucket, objectName);
             return RestResponse.success(false);
         }
         uploadFileParamsDto.setFileSize(size);
@@ -460,21 +460,22 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
 
         //删除分片数据
 
-        composeSourceList.forEach(e->{
-            deleteObjInMinio(videoBucket,e.object());
+        composeSourceList.forEach(e -> {
+            deleteObjInMinio(videoBucket, e.object());
         });
 
         return RestResponse.success(true);
     }
+
     /**
-    * @description 删除对象
-    * @param bucket
+     * @param bucket
      * @param objectName
-    * @return boolean
-    * @author: woldier
-    * @date: 2023/3/12 16:40
-    */
-    private boolean deleteObjInMinio(String bucket, String objectName){
+     * @return boolean
+     * @description 删除对象
+     * @author: woldier
+     * @date: 2023/3/12 16:40
+     */
+    private boolean deleteObjInMinio(String bucket, String objectName) {
         try {
             minioClient.removeObject(
                     RemoveObjectArgs.builder()
@@ -482,13 +483,13 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
                             .object(objectName)
                             .build()
             );
-        }
-        catch (Exception e){
-            log.debug("删除失败,bucket{},objectName{},err{}",bucket,objectName,e.getMessage());
+        } catch (Exception e) {
+            log.debug("删除失败,bucket{},objectName{},err{}", bucket, objectName, e.getMessage());
             return false;
         }
         return true;
     }
+
     /**
      * minio合并文件
      *
@@ -578,7 +579,7 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
     public File minIODownLoad(String bucket, String objectName) {
         File tempFile = null;
         try {
-            tempFile= File.createTempFile("minio", ".temp");
+            tempFile = File.createTempFile("minio", ".temp");
         } catch (Exception e) {
             log.debug("文件上传到MinIO出错,bucket:{},path:{},error:{}", bucket, objectName, e.getMessage());
             return null;
@@ -586,23 +587,34 @@ public class MediaFileServiceImpl extends ServiceImpl<MediaFilesMapper, MediaFil
         try (
                 FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
                 InputStream inputStream = minioClient.getObject(GetObjectArgs.builder().bucket(bucket).object(objectName).build())
-        ){
-            IOUtils.copy(inputStream,fileOutputStream);
-        }
-        catch (Exception e){
+        ) {
+            IOUtils.copy(inputStream, fileOutputStream);
+        } catch (Exception e) {
             log.debug("minio中不存在文件,或者创建文件输出流失败");
         }
         return tempFile;
     }
 
     /**
-    * @description 获取代理对象
-    *
-    * @return com.xuecheng.media.service.MediaFileService
-    * @author: woldier
-    * @date: 2023/3/13 9:20
-    */
-    private MediaFileService getAopContextProxy(){
+     * @param localFilePath 临时文件路径
+     * @param objectName    网页名
+     * @return void
+     * @description 上传课程静态化网页
+     * @author: woldier
+     * @date: 2023/3/27 15:31
+     */
+    @Override
+    public void uploadCourseHtml(String localFilePath, String objectName) {
+        minIOUpload(localFilePath, getMimeType(objectName), fileBucket, objectName);
+    }
+
+    /**
+     * @return com.xuecheng.media.service.MediaFileService
+     * @description 获取代理对象
+     * @author: woldier
+     * @date: 2023/3/13 9:20
+     */
+    private MediaFileService getAopContextProxy() {
         return (MediaFileService) AopContext.currentProxy();
     }
 

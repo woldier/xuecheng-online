@@ -58,15 +58,15 @@ public interface MediaFileService extends IService<MediaFiles> {
     MediaFiles insertMediaFile2DB(Long companyId, UploadFileParamsDto uploadFileParamsDto, String md5, String bucket, String objectName);
 
     /**
-    * @description 判断是否是avi格式视频,若是插入到mediaProcess
-    * @param md5
+     * @param md5
      * @param bucket
      * @param objectName
      * @param mimeType
-    * @return void
-    * @author: woldier
-    * @date: 2023/3/13 9:22
-    */
+     * @return void
+     * @description 判断是否是avi格式视频, 若是插入到mediaProcess
+     * @author: woldier
+     * @date: 2023/3/13 9:22
+     */
     void insertMediaProcessTask(String md5, String bucket, String objectName, String mimeType);
 
     /**
@@ -94,26 +94,26 @@ public interface MediaFileService extends IService<MediaFiles> {
 
 
     /**
-    * @description 上传文件分块
-    * @param md5 md值
-     * @param chunk 分片id
+     * @param md5           md值
+     * @param chunk         分片id
      * @param localFilePath 本地文件路径
-    * @return com.xuecheng.base.model.RestResponse
-    * @author: woldier
-    * @date: 2023/3/12 10:50
-    */
-    RestResponse uploadChuck(String md5, Integer chunk,String localFilePath);
+     * @return com.xuecheng.base.model.RestResponse
+     * @description 上传文件分块
+     * @author: woldier
+     * @date: 2023/3/12 10:50
+     */
+    RestResponse uploadChuck(String md5, Integer chunk, String localFilePath);
 
 
     /**
-    * @description 分块合并
-    * @param md5 md5id
-     * @param chunkTotal   分块总数
-    * @return com.xuecheng.base.model.RestResponse
-    * @author: woldier
-    * @date: 2023/3/12 13:01
-    */
-    RestResponse mergeChunk(String md5, Integer chunkTotal,Long companyId, String fileName) throws IOException;
+     * @param md5        md5id
+     * @param chunkTotal 分块总数
+     * @return com.xuecheng.base.model.RestResponse
+     * @description 分块合并
+     * @author: woldier
+     * @date: 2023/3/12 13:01
+     */
+    RestResponse mergeChunk(String md5, Integer chunkTotal, Long companyId, String fileName) throws IOException;
 
 
     /**
@@ -125,16 +125,27 @@ public interface MediaFileService extends IService<MediaFiles> {
      * @author: woldier
      * @date: 2023/3/10 13:33
      */
-    public boolean minIOUpload(String localFilePath, String fileType, String bucket, String objectName) ;
+    public boolean minIOUpload(String localFilePath, String fileType, String bucket, String objectName);
 
 
     /***
-    * @description minio文件下载 到本地
-    * @param bucket 桶
+     * @description minio文件下载 到本地
+     * @param bucket 桶
      * @param objectName  对象名
-    * @return java.io.File 返回一个文件对象
-    * @author: woldier
-    * @date: 2023/3/15 21:37
-    */
+     * @return java.io.File 返回一个文件对象
+     * @author: woldier
+     * @date: 2023/3/15 21:37
+     */
     public File minIODownLoad(String bucket, String objectName);
+
+    /**
+     * @param localFilePath 临时文件路径
+     * @param objectName    网页名
+     * @return void
+     * @description 上传课程静态化网页
+     * @author: woldier
+     * @date: 2023/3/27 15:31
+     */
+
+    void uploadCourseHtml(String localFilePath, String objectName);
 }
