@@ -19,3 +19,13 @@ POST {{gateway_host}}/media/upload/checkchunk?fileMd5=0dbc6409995eaa9589676c5854
 ### 上传分块
 POST {{gateway_host}}/media/upload/uploadchunk?fileMd5=0dbc6409995eaa9589676c585459e02b&chunk=23
 
+
+### 上传静态页面
+POST {{gateway_host}}/media/upload/coursehtml?objectName=11.html
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data;name="filedata"; filename="11.html"
+Content-Type: application/octet-stream
+
+< d:/java_lesson/11.html
