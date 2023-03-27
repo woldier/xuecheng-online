@@ -13812,23 +13812,832 @@ public class CoursePublishTask extends MessageProcessAbstract {
 
 ##### 5.4.5.1 什么是页面静态化
 
+根据课程发布的操作流程，执行课程发布后要将课程详情信息页面静态化，生成html页面上传至文件系统。
+
+==什么是页面静态化？==
+
+课程预览功能通过模板引擎技术在页面模板中填充数据，生成html页面，这个过程是当客户端请求服务器时服务器才开始渲染生成html页面，最后响应给浏览器，服务端渲染的并发能力是有限的。
+
+页面静态化则强调将生成html页面的过程提前，提前使用模板引擎技术生成html页面，当客户端请求时直接请求html页面，由于是静态页面可以使用nginx、apache等高性能的web服务器，并发性能高。
+
+==什么时候能用页面静态化技术？==
+
+当数据变化不频繁，一旦生成静态页面很长一段时间内很少变化，此时可以使用页面静态化。因为如果数据变化频繁，一旦改变就需要重新生成静态页面，导致维护静态页面的工作量很大。
+
+根据课程发布的业务需求，虽然课程发布后仍可以修改课程信息，但需要经过课程审核，且修改频度不大，所以适合使用页面静态化。
+
 ##### 5.4.5.2 静态化测试
+
+下边使用freemarker技术对页面静态化生成html页面。
+
+在内容管理service工程中添加freemarker依赖
+
+```java
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-freemarker</artifactId>
+</dependency>
+
+```
+
+编写测试方法
+
+```java
+package com.xuecheng.content;
+
+import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.model.dto.CoursePreviewDto;
+import com.xuecheng.content.service.CoursePublishService;
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
+import org.apache.commons.io.IOUtils;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.ui.freemarker.FreeMarkerTemplateUtils;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description freemarker 静态化测试
+ * @date 2023/3/27 12:01
+ **/
+@SpringBootTest
+public class FreemarkerTest {
+    @Autowired
+    CoursePublishService coursePublishService;
+
+
+    //测试页面静态化
+    @Test
+    public void testGenerateHtmlByTemplate() throws IOException, TemplateException, XueChengPlusException {
+        //配置freemarker
+        Configuration configuration = new Configuration(Configuration.getVersion());
+
+        //加载模板
+        //选指定模板路径,classpath下templates下
+        //得到classpath路径
+        String classpath = this.getClass().getResource("/").getPath();
+        configuration.setDirectoryForTemplateLoading(new File(classpath + "/templates/"));
+        //设置字符编码
+        configuration.setDefaultEncoding("utf-8");
+
+        //指定模板文件名称
+        Template template = configuration.getTemplate("course_template.ftl");
+
+        //准备数据
+        CoursePreviewDto coursePreviewInfo = coursePublishService.getCoursePreviewInfo(2L);
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("model", coursePreviewInfo);
+
+        //静态化
+        //参数1：模板，参数2：数据模型
+        String content = FreeMarkerTemplateUtils.processTemplateIntoString(template, map);
+        System.out.println(content);
+        //将静态化内容输出到文件中
+        InputStream inputStream = IOUtils.toInputStream(content);
+        //输出流
+        FileOutputStream outputStream = new FileOutputStream("D:\\java_lesson\\test.html");
+        IOUtils.copy(inputStream, outputStream);
+
+    }
+
+
+
+}
+
+```
+
+
 
 ##### 5.4.5.3 上传文件测试
 
 ###### 5.4.5.3.1 配置远程调用环境
 
+静态化生成文件后需要上传至分布式文件系统，根据微服务的职责划分，媒资管理服务负责维护文件系统中的文件，所以内容管理服务对页面静态化生成html文件需要调用媒资管理服务的上传文件接口。如下图：
+
+![image-20230327144045438](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/aa5550cfd75fe10d246b4e7baba5d874.png)
+
+微服务之间难免会存在远程调用，在Spring Cloud中可以使用Feign进行远程调用，
+
+Feign是一个声明式的http客户端，官方地址：https://github.com/OpenFeign/feign
+
+其作用就是帮助我们优雅的实现http请求的发送，解决上面提到的问题。
+
+下边先准备Feign的开发环境:
+
+1、在内容管理content-service工程添加依赖：
+
+```java
+<dependency>
+    <groupId>com.alibaba.cloud</groupId>
+    <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+</dependency>
+<!-- Spring Cloud 微服务远程调用 -->
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+<dependency>
+    <groupId>io.github.openfeign</groupId>
+    <artifactId>feign-httpclient</artifactId>
+</dependency>
+<!--feign支持Multipart格式传参-->
+<dependency>
+    <groupId>io.github.openfeign.form</groupId>
+    <artifactId>feign-form</artifactId>
+    <version>3.8.0</version>
+</dependency>
+<dependency>
+    <groupId>io.github.openfeign.form</groupId>
+    <artifactId>feign-form-spring</artifactId>
+    <version>3.8.0</version>
+</dependency>
+
+```
+
+2、在nacos配置feign-dev.yaml公用配置文件
+
+```yaml
+feign:
+  hystrix:
+    enabled: true
+  circuitbreaker:
+    enabled: true
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          thread:
+            timeoutInMilliseconds: 30000  #熔断超时时间
+ribbon:
+  ConnectTimeout: 60000 #连接超时时间
+  ReadTimeout: 60000 #读超时时间
+  MaxAutoRetries: 0 #重试次数
+  MaxAutoRetriesNextServer: 1 #切换实例的重试次数
+
+
+```
+
+3、在内容管理service工程和内容管理api工程都引入此配置文件
+
+```java
+shared-configs:
+  - data-id: feign-${spring.profiles.active}.yaml
+    group: xuecheng-plus-common
+    refresh: true
+
+```
+
+4、在内容管理service工程配置feign支持Multipart，拷贝课程资料下的MultipartSupportConfig 到content-service工程下的config包下。
+
+```JAVA
+package com.xuecheng.content.config;
+
+import feign.codec.Encoder;
+import feign.form.spring.SpringFormEncoder;
+import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.disk.DiskFileItemFactory;
+import org.apache.commons.io.IOUtils;
+import org.springframework.beans.factory.ObjectFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
+import org.springframework.cloud.openfeign.support.SpringEncoder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.commons.CommonsMultipartFile;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.OutputStream;
+
+/**
+ * @author Mr.M
+ * @version 1.0
+ * @description TODO
+ * @date 2022/10/15 22:13
+ */
+@Configuration
+public class MultipartSupportConfig {
+
+    @Autowired
+    private ObjectFactory<HttpMessageConverters> messageConverters;
+
+    @Bean
+    @Primary//注入相同类型的bean时优先使用
+    @Scope("prototype")
+    public Encoder feignEncoder() {
+        return new SpringFormEncoder(new SpringEncoder(messageConverters));
+    }
+
+    //将file转为Multipart
+    public static MultipartFile getMultipartFile(File file) {
+        FileItem item = new DiskFileItemFactory().createItem("file", MediaType.MULTIPART_FORM_DATA_VALUE, true, file.getName());
+        try (FileInputStream inputStream = new FileInputStream(file);
+             OutputStream outputStream = item.getOutputStream();) {
+            IOUtils.copy(inputStream, outputStream);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return new CommonsMultipartFile(item);
+    }
+}
+
+```
+
+
+
 ###### 5.4.5.3.2 扩充上传文件接口
+
+现在需要将课程的静态文件上传到minio，单独存储到course目录下，文件的objectname为"课程id.html"，原有的上传文件接口需要增加一个参数 objectname。
+
+下边扩充媒资服务的上传文件接口
+
+```java
+    @ApiOperation("静态化网页上传")
+    @RequestMapping(value = "/upload/coursehtml", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public void uploadHtml(
+            @RequestPart("filedata") MultipartFile upload,
+            @RequestParam(value = "objectName", required = false) String objectName) throws IOException {
+        File tempFile = getTempFile(upload);
+        mediaFileService.uploadObject(tempFile.getAbsolutePath(),"course/"+ objectName);
+        boolean delete = tempFile.delete();
+        if (!delete)
+            log.error("删除文件错误{}", tempFile.getAbsolutePath());
+    }
+
+
+```
+
+添加一个业务方法上传minio
+
+```java
+    void uploadObject(String localFilePath, String objectName);
+```
+
+实现类如下
+
+```java
+
+/**
+     * @param localFilePath 临时文件路径
+     * @param objectName    网页名
+     * @return void
+     * @description 上传课程静态化网页
+     * @author: woldier
+     * @date: 2023/3/27 15:31
+     */
+    @Override
+    public void uploadObject(String localFilePath, String objectName) {
+        //所有的静态文件都存在course文件夹下
+        minIOUpload(localFilePath, getMimeType(objectName), fileBucket, objectName);
+    }
+```
+
+
+
+
 
 ###### 5.4.5.3.3 远程调用测试
 
+在content-service下编写feign接口
+
+1.接口加上`@FeignClient`注解表示这是一个feign远程调用的接口;
+
+其中的`value`属性设置目标远程调用用服务的服务名
+
+`configuration`configuration进行额外配置,使得能够支持spring-multipart文件
+
+```java
+package com.xuecheng.content.feignclient;
+
+import com.xuecheng.content.config.MultipartSupportConfig;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.IOException;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description openfeign-媒资服务远程调用
+ * @date 2023/3/27 15:55
+ **/
+@FeignClient(value = "media-api")  // 注解未feign远程调用api,value属性执行调用的服务名
+@RequestMapping("/media")
+public interface MediaServiceClient {
+    @RequestMapping(value = "/upload/coursehtml", consumes = MediaType.MULTIPART_FORM_DATA_VALUE,configuration = MultipartSupportConfig.class)
+    public void uploadHtml(
+            @RequestPart("filedata") MultipartFile upload,
+            @RequestParam(value = "objectName", required = false) String objectName);
+}
+
+```
+
+2.在启动类添加@EnableFeignClients注解
+
+```java
+package com.xuecheng;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description content 服务 启动类
+ * @date 2023/2/15 12:03
+ **/
+@SpringBootApplication
+@EnableFeignClients(basePackages={"com.xuecheng.content.feignclient"})
+public class App {
+    public static void main(String[] args) {
+        SpringApplication.run(App.class,args);
+    }
+}
+```
+
+注意的是,我们当前是在contentservice的启动类上加的,用于测试,若之后启动content-api,需要在content-api的启动类上加入该注解
+
+```java
+package com.xuecheng;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+
+/**
+ * @author woldier
+ * @version 1.0
+ * @description content 服务 启动类
+ * @date 2023/2/15 12:03
+ **/
+@SpringBootApplication
+@EnableFeignClients(basePackages={"com.xuecheng.content.feignclient"}) //配置扫描feign调用接口所存在的包路径
+public class App {
+    public static void main(String[] args) {
+        SpringApplication.run(App.class,args);
+    }
+}
+```
+
+接下来我们进行测试,在测试文件夹下
+
+```java
+package com.xuecheng.content;
+
+import com.xuecheng.content.config.MultipartSupportConfig;
+import com.xuecheng.content.feignclient.MediaServiceClient;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+
+@SpringBootTest
+public class FeignUploadTest {
+
+    @Autowired
+    MediaServiceClient mediaServiceClient;
+
+    //远程调用，上传文件
+    @Test
+    public void test() {
+    
+        MultipartFile multipartFile = MultipartSupportConfig.getMultipartFile(new File("D:\\java_lesson\\11.html"));
+        mediaServiceClient.uploadHtml(multipartFile,"12.html");
+    }
+
+}
+
+```
+
+![image-20230327160939019](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/a9e34f5494762061d711f6040c066b23.png)
+
+检查minio 上传成功
+
+访问：http://192.168.0.108:9000/mediafiles/course/12.html
+
+查看是否可以正常访问。
+
+ 
+
 ##### 5.4.5.4 熔断降级
 
-5.4.5.4.1 什么是熔断降级
+###### 5.4.5.4.1 什么是熔断降级
 
-5.4.5.4.2 熔断降级处理
+微服务中难免存在服务之间的远程调用，比如：内容管理服务远程调用媒资服务的上传文件接口，当微服务运行不正常会导致无法正常调用微服务，此时会出现异常，如果这种异常不去处理可能导致雪崩效应。
+
+微服务的雪崩效应表现在服务与服务之间调用，当其中一个服务无法提供服务可能导致其它服务也死掉，比如：服务B调用服务A，由于A服务异常导致B服务响应缓慢，最后B、C等服务都不可用，像这样由一个服务所引起的一连串的多个服务无法提供服务即是微服务的雪崩效应，如下图：
+
+![image-20230327161108798](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/53c6eb7cf71ad32c5a1dc838908a8450.png)
+
+如何解决由于微服务异常引起的雪崩效应呢？
+
+可以采用熔断、降级的方法去解决。
+
+熔断降级的相同点都是为了解决微服务系统崩溃的问题，但它们是两个不同的技术手段，两者又存在联系。
+
+熔断：
+
+当下游服务异常而断开与上游服务的交互，它就相当于保险丝，下游服务异常触发了熔断，从而保证上游服务不受影响。
+
+![image-20230327161137731](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/b1769f578c7e0a76d04f8478f3ee1e5a.png)
+
+
+
+降级：
+
+当下游服务异常触发熔断后，上游服务就不再去调用异常的微服务而是执行了降级处理逻辑，这个降级处理逻辑可以是本地一个单独的方法。
+
+![image-20230327161159811](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/f9a7144f46c28f53ee787b266ae0610f.png)
+
+
+
+两者都是为了保护系统，熔断是当下游服务异常时一种保护系统的手段，降级是熔断后上游服务处理熔断的方法。
+
+
+
+###### 5.4.5.4.2 熔断降级处理
+
+项目使用Hystrix框架实现熔断、降级处理，在feign-dev.yaml中配置。
+
+1、开启Feign熔断保护
+
+```yaml
+feign:
+  hystrix:
+    enabled: true
+  circuitbreaker:
+    enabled: true
+
+```
+
+2、设置熔断的超时时间，为了防止一次处理时间较长触发熔断这里还需要设置请求和连接的超时时间，如下：
+
+```yaml
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          thread:
+            timeoutInMilliseconds: 30000  #熔断超时时间
+ribbon:
+  ConnectTimeout: 60000 #连接超时时间
+  ReadTimeout: 60000 #读超时时间
+  MaxAutoRetries: 0 #重试次数
+  MaxAutoRetriesNextServer: 1 #切换实例的重试次数
+
+```
+
+3、定义降级逻辑
+
+两种方法：
+
+1）fallback 
+
+```java
+@FeignClient(value = "media-api",configuration = MultipartSupportConfig.class,fallback = MediaServiceClientFallback.class)
+@RequestMapping("/media")
+public interface MediaServiceClient{
+///***
+}
+```
+
+定义一个fallback类`MediaServiceClientFallback`，此类实现了`MediaServiceClient`接口。
+
+第一种方法无法取出熔断所抛出的异常，第二种方法定义`MediaServiceClientFallbackFactory `可以解决这个问题。
+
+2）fallbackFactory 
+
+第二种方法在FeignClient中指定fallbackFactory ，如下：
+
+```java
+@FeignClient(value = "media-api",configuration = MultipartSupportConfig.class,fallbackFactory = MediaServiceClientFallbackFactory.class)
+@RequestMapping("/media")
+public interface MediaServiceClient{
+///***
+}
+```
+
+定义`MediaServiceClientFallbackFactory`如下：
+
+```java
+@Slf4j
+@Component
+public class MediaServiceClientFallbackFactory implements FallbackFactory<MediaServiceClient> {
+    @Override
+    public MediaServiceClient create(Throwable throwable) {
+        return new MediaServiceClient(){
+            @Override
+            public String uploadFile(MultipartFile upload, String objectName) {
+                //降级方法
+                log.debug("调用媒资管理服务上传文件时发生熔断，异常信息:{}",throwable.toString(),throwable);
+                return null;
+            }
+        };
+    }
+}
+
+```
+
+降级处理逻辑：
+
+返回一个null对象，上游服务请求接口得到一个null说明执行了降级处理。
+
+测试：
+
+停止媒资管理服务或人为制造异常观察是否执行降级逻辑。
+
+
 
 ##### 5.4.5.5 课程静态化开发
+
+课程页面静态化和静态页面远程上传测试通过，下一步开发课程静态化功能，最终使用消息处理SDK去调度执行。
+
+###### 5.4.5.5.1 静态化测试
+
+课程静态化包括两部分工作：生成课程静态化页面，上传静态页面到文件系统。
+
+在课程发布的service编写这两部分内容，最后通过消息去调度执行。
+
+`CoursePublishService.java`
+
+1、接口方法定义
+
+```java
+/**
+ * @description 课程静态化
+ * @param courseId  课程id
+ * @return File 静态化文件
+ * @author Mr.M
+ * @date 2022/9/23 16:59
+*/
+public File generateCourseHtml(Long courseId);
+/**
+ * @description 上传课程静态化页面
+ * @param file  静态化文件
+ * @return void
+ * @author Mr.M
+ * @date 2022/9/23 16:59
+*/
+public void  uploadCourseHtml(Long courseId,File file);
+
+```
+
+2、接口实现
+
+将之前编写的静态化测试代码以及上传静态文件测试代码拷贝过来使用
+
+```java
+
+
+            /**
+     * description 生成课程静态化页面
+     *
+     * @param courseId 课程id
+     * @return java.io.File
+     * @author: woldier
+     * @date: 2023/3/27 16:52
+     */
+    @Override
+    public File generateCourseHtml(Long courseId) throws XueChengPlusException {
+        //配置freemarker
+        Configuration configuration = new Configuration(Configuration.getVersion());
+
+        //加载模板
+        //选指定模板路径,classpath下templates下
+        //得到classpath路径
+        String classpath = this.getClass().getResource("/").getPath();
+        try {
+            configuration.setDirectoryForTemplateLoading(new File(classpath + "/templates/"));
+        } catch (IOException e) {
+            log.error("失败,err{}",e.getCause());
+            e.printStackTrace();
+            XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
+        }
+        //设置字符编码
+        configuration.setDefaultEncoding("utf-8");
+
+        //指定模板文件名称
+        Template template = null;
+        try {
+            template = configuration.getTemplate("course_template.ftl");
+        } catch (IOException e) {
+            log.error("加载模板文件失败,{}",e.getCause());
+            e.printStackTrace();
+            XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
+        }
+
+        //准备数据
+        CoursePreviewDto coursePreviewInfo = getCoursePreviewInfo(courseId);
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("model", coursePreviewInfo);
+
+        //静态化
+        //参数1：模板，参数2：数据模型
+        String content = null;
+        try {
+            content = FreeMarkerTemplateUtils.processTemplateIntoString(template, map);
+        } catch (IOException | TemplateException e) {
+            log.error("模型渲染出错");
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+
+        System.out.println(content);
+        //将静态化内容输出到文件中
+        InputStream inputStream = IOUtils.toInputStream(content);
+        //输出流
+        File tempFile = null;
+        try {
+            tempFile = File.createTempFile("coursehtml",".temp");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try(FileOutputStream outputStream = new FileOutputStream(tempFile)){
+            IOUtils.copy(inputStream, outputStream);
+        }catch (Exception e){
+            log.error("出错了");
+            e.printStackTrace();
+             XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
+        }
+
+        return tempFile;
+    }
+
+    /**
+     * description 上传课程静态化网页到minio
+     *
+     * @param courseId 课程id
+     * @param file     本地静态化html文件
+     * @return void
+     * @author: woldier
+     * @date: 2023/3/27 16:55
+     */
+    @Override
+    public void uploadCourseHtml(Long courseId, File file) throws XueChengPlusException {
+        MultipartFile multipartFile = MultipartSupportConfig.getMultipartFile(file);
+        mediaServiceClient.uploadHtml(multipartFile,courseId.toString()+".html");
+    }
+```
+
+
+
+完善课程发布任务CoursePublishTask类的代码：
+
+```java
+private final CoursePublishService coursePublishService;
+//生成课程静态化页面并上传至文件系统
+    public void generateCourseHtml(MqMessage mqMessage, long courseId) {
+
+        log.debug("开始进行课程静态化,课程id:{}", courseId);
+        //消息id
+        Long id = mqMessage.getId();
+        //消息处理的service
+        MqMessageService mqMessageService = this.getMqMessageService();
+        //消息幂等性处理
+        int stageOne = mqMessageService.getStageOne(id);
+        if (stageOne > 0) {
+            log.debug("课程静态化已处理直接返回，课程id:{}", courseId);
+            return;
+        }
+        //生成静态页面
+        try {
+            File file = coursePublishService.generateCourseHtml(courseId);
+            coursePublishService.uploadCourseHtml(courseId,file);
+            file.delete();
+        } catch (XueChengPlusException e) {
+            log.error("静态化页面出错");
+            throw new RuntimeException(e);
+        }
+
+
+        //保存第一阶段状态
+        mqMessageService.completedStageOne(id);
+
+    }
+```
+
+
+
+
+
+
+
+###### 5.4.5.5.2 测试
+
+1、启动网关、媒资管理服务工程。
+
+2、在内容管理api工程的启动类上配置FeignClient
+
+```java
+@EnableFeignClients(basePackages={"com.xuecheng.content.feignclient"})
+```
+
+在bootstrap.yml引用feign-dev.yaml
+
+```java
+- data-id: feign-${spring.profiles.active}.yaml
+  group: xuecheng-plus-common
+  refresh: true  #profiles默认为dev
+
+```
+
+启动内容管理接口工程。
+
+在CoursePublishTask类的execute方法中打上断点。
+
+ 
+
+3、发布一门课程，保存消息表存在未处理的处理。
+
+ 
+
+4、启动xxl-job调度中心、启动课程发布任务，等待定时调度。
+
+![image-20230327172852366](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/67ed38c0526f5dddbc81d7ab6fd412d3.png)
+
+5、观察任务调度日志，观察任务是否可以正常处理。
+
+6、处理完成进入文件系统，查询mediafiles桶内是否存在以课程id命名的html文件
+
+![image-20230327172939000](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/24c76b57b79d98d80214de634e85abe0.png)
+
+如果不存在说明课程静态化存在问题，再仔细查看执行日志，排查问题。
+
+如果存在则说明课程静态化并上传到minio成功。
+
+
+
+###### 5.4.5.5.3 浏览详细页面             
+
+课程静态化成功后可以用浏览器访问html文件是否可以正常浏览，下图表示可以正常浏览。
+
+http://localhost:9000/mediafiles/course/130.html
+
+http://file.51xuecheng.cn/mediafiles/course/130.html
+
+![image-20230327173116583](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/191f11deb2e4a19cf0aa103be901c392.png)
+
+页面还没有样式，需要在nginx配置虚拟目录，在www.51xuecheng.cn下配置： 
+
+这是因为原有的访问路径为`file.51xuecheng.cn/mediafiles/course/130/html ` ,而该站点下没有其他的静态文件,所以我们要在主站也配置代理
+
+
+
+![image-20230327173254133](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/e02f225cd88e3203909c57c7725dcba5.png)
+
+
+
+​            在主站中配置如下`www.51xuecheng.cn`
+
+```shell
+        #映射到file.51xuecheng.cn
+        location /course/ {  
+        proxy_pass http://fileserver/mediafiles/course/;
+} 
+
+
+```
+
+加载nginx配置文件
+
+访问：http://www.51xuecheng.cn/course/130.html
+
+![image-20230327174215186](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/8901765a95df1fd8bc47e9cb26fb83a2.png)
+
+
+
+
+
+docker es 安装详见
+
+https://zhuanlan.zhihu.com/p/163186766
 
 ```
 ### XXX.XXX xxxxxx模块
