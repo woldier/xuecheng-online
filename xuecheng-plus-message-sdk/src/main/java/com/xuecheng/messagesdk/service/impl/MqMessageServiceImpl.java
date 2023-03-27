@@ -61,7 +61,7 @@ public class MqMessageServiceImpl extends ServiceImpl<MqMessageMapper, MqMessage
         //完成任务
         mqMessage.setState("1");
         int update = mqMessageMapper.update(mqMessage, new LambdaQueryWrapper<MqMessage>().eq(MqMessage::getId, id));
-        if(update>0){
+        if(update>0){//新增成功说明没有重复操作写入历史表
 
             mqMessage = mqMessageMapper.selectById(id);
             //添加到历史表
@@ -71,7 +71,7 @@ public class MqMessageServiceImpl extends ServiceImpl<MqMessageMapper, MqMessage
             //删除消息表
             mqMessageMapper.deleteById(id);
             return 1;
-        }
+        }//update<=0说明已经有其他线程完成了本次操作,不插入消息历史表
         return 0;
 
     }
