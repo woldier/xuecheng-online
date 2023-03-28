@@ -11,7 +11,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
  * @date 2023/2/15 12:03
  **/
 @SpringBootApplication
-@EnableFeignClients(basePackages={"com.xuecheng.content.feignclient"})
+//@EnableFeignClients(basePackages={"com.xuecheng.content.feignclient"})
 public class App {
     public static void main(String[] args) {
         SpringApplication.run(App.class,args);
