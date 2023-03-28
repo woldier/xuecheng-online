@@ -21,7 +21,7 @@ import java.io.IOException;
  **/
 // 注解未feign远程调用api,value属性执行调用的服务名,configuration进行额外配置,使得能够支持spring-multipart远程调用
 //@FeignClient(value = "media-api", configuration = MultipartSupportConfig.class,fallback = MediaServiceClientFallback.class)  //自定义Fallback类
-@FeignClient(value = "media-api", configuration = MultipartSupportConfig.class,fallback = MediaServiceClientFallback.class)  //自定义工厂
+@FeignClient(value = "media-api", configuration = MultipartSupportConfig.class,fallbackFactory = MediaServiceClientFallbackFactory.class)  //自定义工厂
 //@FeignClient(value = "media-api", configuration = MultipartSupportConfig.class,fallback = FallbackFactory.Default.class)  //使用默认工厂
 @RequestMapping("/media")
 public interface MediaServiceClient {

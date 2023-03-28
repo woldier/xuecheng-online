@@ -1,6 +1,7 @@
 package com.xuecheng.content.feignclient;
 
 import com.xuecheng.base.exception.XueChengPlusException;
+import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -9,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
  * @description MediaServiceClient 熔断回调
  * @date 2023/3/27 16:25
  **/
+//@Component
 public class MediaServiceClientFallback implements MediaServiceClient{
     @Override
     public void uploadHtml(MultipartFile upload, String objectName) throws XueChengPlusException {
