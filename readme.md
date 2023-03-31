@@ -16341,6 +16341,20 @@ public class CoursePublishTask extends MessageProcessAbstract {
 
 ![image-20230328161944441](https://woldier-pic-repo-1309997478.cos.ap-chengdu.myqcloud.com/woldier/2023/03/2724926d0e3ee625453c1cc85c0fdbee.png)
 
+
+
+
+
+
+
+## 6. 认证授权
+
+[章节六](./chapter6.m)
+
+
+
+
+
 ```
 ### XXX.XXX xxxxxx模块
 
