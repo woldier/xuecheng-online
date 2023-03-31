@@ -16349,7 +16349,7 @@ public class CoursePublishTask extends MessageProcessAbstract {
 
 ## 6. 认证授权
 
-[章节六](./chapter6.m)
+[章节六](./chapter6.md)
 
 
 
