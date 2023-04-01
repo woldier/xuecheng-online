@@ -10,9 +10,11 @@ import com.xuecheng.content.model.dto.EditCourseDto;
 import com.xuecheng.content.model.po.CourseBase;
 //import com.xuecheng.content.model.vo.QueryCourseParamsDto;
 import com.xuecheng.content.service.CourseBaseInfoService;
+import com.xuecheng.content.utils.SecurityUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import com.xuecheng.content.model.dto.QueryCourseParamsDto;
@@ -64,6 +66,9 @@ public class CourseBaseInfoController {
     @ApiOperation("查询单个课程接口")
     @GetMapping("/course/{courseId}")
     public CourseBaseInfoDto getCourseBaseInfoById(@PathVariable Long courseId) {
+        //取出当前用户身份
+        SecurityUtil.XcUser xcUser = SecurityUtil.getUser();
+        System.out.println(xcUser);
         return courseBaseInfoService.getCourseBaseInfo(courseId);
     }
 
