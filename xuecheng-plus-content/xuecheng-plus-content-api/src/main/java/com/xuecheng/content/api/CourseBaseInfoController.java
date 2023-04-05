@@ -1,5 +1,6 @@
 package com.xuecheng.content.api;
 
+import com.xuecheng.base.exception.CommonError;
 import com.xuecheng.base.exception.ValidationGroups;
 import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.base.model.PageParams;
@@ -16,6 +17,7 @@ import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import com.xuecheng.content.model.dto.QueryCourseParamsDto;
@@ -43,8 +45,13 @@ public class CourseBaseInfoController {
     @PostMapping("/course/list")
     @PreAuthorize("hasAuthority('xc_teachmanager_course_list')")
     public PageResult<CourseBase> list(PageParams pageParams, @RequestBody
-    QueryCourseParamsDto queryCourseParams) {
-        return courseBaseInfoService.queryCourseBaseList(pageParams, queryCourseParams);
+    QueryCourseParamsDto queryCourseParams) throws XueChengPlusException {
+        //取出当前用户身份
+        SecurityUtil.XcUser xcUser = SecurityUtil.getUser();
+
+        if(StringUtils.isEmpty(xcUser.getCompanyId())) XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
+        Long companyId = Long.valueOf(xcUser.getCompanyId());
+        return courseBaseInfoService.queryCourseBaseList(companyId,pageParams, queryCourseParams);
     }
 
     @ApiOperation("新增课程接口")
@@ -52,7 +59,11 @@ public class CourseBaseInfoController {
     public CourseBaseInfoDto createCourseBase(@RequestBody @Validated({ValidationGroups.Inster.class}) AddCourseDto addCourseDto) throws XueChengPlusException {
         /*1.获取用户所属公司id*/
         //机构id，由于认证系统没有上线暂时硬编码
-        Long companyId = 22L;
+        //取出当前用户身份
+        SecurityUtil.XcUser xcUser = SecurityUtil.getUser();
+
+        if(StringUtils.isEmpty(xcUser.getCompanyId())) XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
+        Long companyId = Long.valueOf(xcUser.getCompanyId());
         /*2.call 新增课程service*/
         return courseBaseInfoService.addCourse(companyId, addCourseDto);
 
@@ -85,7 +96,11 @@ public class CourseBaseInfoController {
     @ApiOperation("修改课程接口")
     @PutMapping("/course")
     public CourseBaseInfoDto ModifyCourseBase(@RequestBody @Validated({ValidationGroups.Update.class}) EditCourseDto editCourseDto) throws XueChengPlusException {
-        Long companyId = 1232141425L;
+        //取出当前用户身份
+        SecurityUtil.XcUser xcUser = SecurityUtil.getUser();
+
+        if(StringUtils.isEmpty(xcUser.getCompanyId())) XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
+        Long companyId = Long.valueOf(xcUser.getCompanyId());
         return courseBaseInfoService.updateCourseBase(companyId, editCourseDto);
     }
 
