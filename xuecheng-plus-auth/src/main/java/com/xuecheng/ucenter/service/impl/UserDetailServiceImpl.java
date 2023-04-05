@@ -73,15 +73,15 @@ public class UserDetailServiceImpl implements UserDetailsService {
      */
     public UserDetails getUserPrincipal(XcUserExt user) {
         //用户权限,如果不加报Cannot pass a null GrantedAuthority collection
-        String[] authorities = {"p1"};
+        String[] authorities = user.getPermissions().toArray(new String[0]);
         String password = user.getPassword();
         //为了安全在令牌中不放密码
         user.setPassword(null);
         //将user对象转json
         String userString = JSON.toJSONString(user);
         //创建UserDetails对象
-        UserDetails userDetails = User.withUsername(userString).password(password).authorities(authorities).build();
-        return userDetails;
+        return User.withUsername(userString).password(password).authorities(authorities).build();
+
     }
 
 
