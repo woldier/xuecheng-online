@@ -48,6 +48,8 @@ public class GlobalExceptionHandler {
     public RestErrorResponse doException(Exception e){
         log.error(e.getMessage());
         e.printStackTrace();
+        if("不允许访问".equals(e.getMessage()))
+            return new RestErrorResponse("没有操作此功能的权限");
         return new RestErrorResponse(CommonError.UNKOWN_ERROR.getErrMessage());
     }
 
