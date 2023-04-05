@@ -25,7 +25,7 @@ public interface CourseBaseInfoService {
      * @author: woldier
      * @date: 2023/2/15 22:04
      */
-    PageResult<CourseBase> queryCourseBaseList(PageParams pageParams, QueryCourseParamsDto queryCourseParamsDto);
+    PageResult<CourseBase> queryCourseBaseList(Long companyId,PageParams pageParams, QueryCourseParamsDto queryCourseParamsDto);
 
     /**
      * @param companyId    公司id

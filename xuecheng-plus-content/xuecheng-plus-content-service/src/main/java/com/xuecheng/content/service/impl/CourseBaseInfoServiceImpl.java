@@ -57,15 +57,17 @@ public class CourseBaseInfoServiceImpl implements CourseBaseInfoService {
      * @date: 2023/2/15 22:15
      */
     @Override
-    public PageResult<CourseBase> queryCourseBaseList(PageParams pageParams, QueryCourseParamsDto queryCourseParamsDto) {
+    public PageResult<CourseBase> queryCourseBaseList(Long companyId,PageParams pageParams, QueryCourseParamsDto queryCourseParamsDto) {
         LambdaQueryWrapper<CourseBase> lambdaQueryWrapper = new LambdaQueryWrapper<>();
         /*
          *添加查询条件
          *对于课程名采用模糊查询 ,其他的采用精确查询
          * */
         lambdaQueryWrapper.like(!StringUtils.isEmpty(queryCourseParamsDto.getCourseName()), CourseBase::getName, queryCourseParamsDto.getCourseName())
+                .eq(CourseBase::getCompanyId,companyId)
                 .eq(!StringUtils.isEmpty(queryCourseParamsDto.getAuditStatus()), CourseBase::getAuditStatus, queryCourseParamsDto.getAuditStatus())
                 .eq(!StringUtils.isEmpty(queryCourseParamsDto.getPublishStatus()), CourseBase::getStatus, queryCourseParamsDto.getPublishStatus());
+
         /*初始化分页器*/
         IPage<CourseBase> page = new Page<>(pageParams.getPageNo(), pageParams.getPageSize());
         /*分页查询*/
