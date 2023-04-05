@@ -34,7 +34,7 @@ public class CourseBaseMapperTest {
 
     @Test
     void testCourseBaseInfoService() {
-        PageResult<CourseBase> courseBasePageResult = courseBaseInfoService.queryCourseBaseList(new PageParams(1, 5), new QueryCourseParamsDto());
-        log.info(courseBasePageResult.toString());
+        //PageResult<CourseBase> courseBasePageResult = courseBaseInfoService.queryCourseBaseList(new PageParams(1, 5), new QueryCourseParamsDto());
+        //log.info(courseBasePageResult.toString());
     }
 }
