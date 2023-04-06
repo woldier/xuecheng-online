@@ -34,6 +34,12 @@ public class CheckCodeController {
         return picCheckCodeService.generate(checkCodeParamsDto);
     }
 
+    @ApiOperation(value="生成验证信息", notes="生成验证信息")
+    @PostMapping(value = "/phone")
+    public CheckCodeResultDto generatePhoneCheckCode(CheckCodeParamsDto checkCodeParamsDto){
+        return picCheckCodeService.generate(checkCodeParamsDto);
+    }
+
     @ApiOperation(value="校验", notes="校验")
     @ApiImplicitParams({
             @ApiImplicitParam(name = "name", value = "业务名称", required = true, dataType = "String", paramType="query"),
@@ -45,4 +51,6 @@ public class CheckCodeController {
         Boolean isSuccess = picCheckCodeService.verify(key,code);
         return isSuccess;
     }
+
+
 }
