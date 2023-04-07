@@ -86,20 +86,18 @@ public class PasswordAuthServiceImpl implements AuthService, RegisterService {
          * 2.密码转码
          * 存入数据库
          */
-        if(!dto.getPassword().equals(dto.getConfirmpwd()))
+        if (!dto.getPassword().equals(dto.getConfirmpwd()))
             XueChengPlusException.cast("输入的密码不匹配");
 
         LambdaQueryWrapper<XcUser> q = new LambdaQueryWrapper<>();
-        q.eq(XcUser::getUsername,dto.getUsername());
+        q.eq(XcUser::getUsername, dto.getUsername());
         XcUser xcUser = xcUserMapper.selectOne(q);
         if (xcUser != null) XueChengPlusException.cast("当前用户存在,请直接登录");
 
-        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-        String pwd = dto.getPassword();
-        pwd = encoder.encode(pwd);
+        String pwd = getPwd(dto);
 
         XcUser user = new XcUser();
-        BeanUtils.copyProperties(dto,user);
+        BeanUtils.copyProperties(dto, user);
         user.setName(user.getNickname());
         user.setPassword(pwd);
         user.setUtype("101001");
@@ -108,5 +106,31 @@ public class PasswordAuthServiceImpl implements AuthService, RegisterService {
         xcUserMapper.insert(user);
 
         return true;
+    }
+
+    private static String getPwd(RegisterDto dto) {
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+        String pwd = dto.getPassword();
+        pwd = encoder.encode(pwd);
+        return pwd;
+    }
+
+    @Override
+    public boolean findPassword(RegisterDto dto) throws XueChengPlusException {
+        if (StringUtils.isEmpty(dto.getCellphone()) && StringUtils.isEmpty(dto.getEmail()))
+            XueChengPlusException.cast("电话号码和邮箱不能同时为空");
+        LambdaQueryWrapper<XcUser> q = new LambdaQueryWrapper<>();
+        q.eq(!StringUtils.isEmpty(dto.getCellphone()), XcUser::getCellphone, dto.getCellphone());
+        q.eq(!StringUtils.isEmpty(dto.getEmail()), XcUser::getEmail, dto.getEmail());
+        XcUser xcUser = xcUserMapper.selectOne(q);
+        if (xcUser == null) XueChengPlusException.cast("当前用户不存在");
+
+        String pwd = getPwd(dto);
+
+        xcUser.setPassword(pwd);
+
+        xcUserMapper.updateById(xcUser);
+
+        return false;
     }
 }
