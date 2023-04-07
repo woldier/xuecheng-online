@@ -1,5 +1,6 @@
 package com.xuecheng.auth.controller;
 
+import com.xuecheng.auth.exception.ValidationGroups;
 import com.xuecheng.auth.exception.XueChengPlusException;
 import com.xuecheng.ucenter.feignclient.CheckCodeClient;
 import com.xuecheng.ucenter.mapper.XcUserMapper;
@@ -45,11 +46,17 @@ public class LoginController {
     * @date: 2023/4/6 19:25
     */
     @PostMapping ("/user/doregister")
-    public String register(@RequestBody @Validated RegisterDto registerDto) throws XueChengPlusException {
+    public String register(@RequestBody @Validated(value = {ValidationGroups.Inster.class}) RegisterDto registerDto) throws XueChengPlusException {
         Boolean verify = checkCodeClient.verify(registerDto.getCheckcodekey(), registerDto.getCheckcode());
         if(!verify) XueChengPlusException.cast("效验错误");
         boolean b = registerService.registerUser(registerDto);
-        return "登录成功";
+        return "注册成功";
+    }
+    @PostMapping("/user/findpassword")
+    public void findPassword(@RequestBody @Validated(value = {ValidationGroups.Update.class}) RegisterDto registerDto) throws XueChengPlusException {
+        Boolean verify = checkCodeClient.verify(registerDto.getCheckcodekey(), registerDto.getCheckcode());
+        if(!verify) XueChengPlusException.cast("效验错误");
+        registerService.findPassword(registerDto);
     }
 
     @RequestMapping("/user/{id}")
