@@ -22,7 +22,10 @@ spring:
           - data-id: feign-${spring.profiles.active}.yaml
             group: xuecheng-plus-common
             refresh: true
-
-
   profiles:
     active: dev
+spring-csrf:
+  -/user/register
+  -/some/**
+
+
