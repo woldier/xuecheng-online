@@ -1,20 +1,27 @@
 package com.xuecheng.ucenter.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+
+import com.xuecheng.auth.exception.XueChengPlusException;
 import com.xuecheng.ucenter.feignclient.CheckCodeClient;
 import com.xuecheng.ucenter.mapper.XcMenuMapper;
 import com.xuecheng.ucenter.mapper.XcUserMapper;
 import com.xuecheng.ucenter.model.dto.AuthParamsDto;
+import com.xuecheng.ucenter.model.dto.RegisterDto;
 import com.xuecheng.ucenter.model.dto.XcUserExt;
 import com.xuecheng.ucenter.model.po.XcMenu;
 import com.xuecheng.ucenter.model.po.XcUser;
 import com.xuecheng.ucenter.service.AuthService;
+import com.xuecheng.ucenter.service.RegisterService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,7 +32,7 @@ import java.util.stream.Collectors;
  * @date 2023/4/1 17:23
  **/
 @Service("password_authservice")
-public class PasswordAuthServiceImpl implements AuthService {
+public class PasswordAuthServiceImpl implements AuthService, RegisterService {
     @Autowired
     XcUserMapper xcUserMapper;
 
@@ -69,5 +76,37 @@ public class PasswordAuthServiceImpl implements AuthService {
         xcUserExt.setPermissions(stringList);
         return xcUserExt;
 
+    }
+
+    @Override
+    @Transactional
+    public boolean registerUser(RegisterDto dto) throws XueChengPlusException {
+        /**
+         * 1.查询用户username是否存在
+         * 2.密码转码
+         * 存入数据库
+         */
+        if(!dto.getPassword().equals(dto.getConfirmpwd()))
+            XueChengPlusException.cast("输入的密码不匹配");
+
+        LambdaQueryWrapper<XcUser> q = new LambdaQueryWrapper<>();
+        q.eq(XcUser::getUsername,dto.getUsername());
+        XcUser xcUser = xcUserMapper.selectOne(q);
+        if (xcUser != null) XueChengPlusException.cast("当前用户存在,请直接登录");
+
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+        String pwd = dto.getPassword();
+        pwd = encoder.encode(pwd);
+
+        XcUser user = new XcUser();
+        BeanUtils.copyProperties(dto,user);
+        user.setName(user.getNickname());
+        user.setPassword(pwd);
+        user.setUtype("101001");
+        user.setStatus("1");
+        user.setCreateTime(LocalDateTime.now());
+        xcUserMapper.insert(user);
+
+        return true;
     }
 }
