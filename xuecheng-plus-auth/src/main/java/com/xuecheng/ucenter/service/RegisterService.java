@@ -20,4 +20,15 @@ public interface RegisterService {
     * @date: 2023/4/6 19:39
     */
     boolean registerUser(RegisterDto dto) throws XueChengPlusException;
+
+    /**
+    *
+    * description 找回密码
+    *
+    * @param dto
+    * @return boolean
+    * @author: woldier
+    * @date: 2023/4/7 13:16
+    */
+    boolean findPassword(RegisterDto dto) throws XueChengPlusException;
 }
