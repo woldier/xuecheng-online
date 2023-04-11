@@ -57,6 +57,7 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
     private final MqMessageService mqMessageService;
 
     private final MediaServiceClient mediaServiceClient;
+
     /**
      * @param courseId 课程id
      * @return com.xuecheng.content.model.dto.CoursePreviewDto
@@ -99,7 +100,7 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
         // 查询课程预发布信息
         CoursePublishPre coursePublishPre = coursePublishPreService.getById(courseId);
         //判断是否是本机构课程
-        if(coursePublishPre == null)
+        if (coursePublishPre == null)
             XueChengPlusException.cast("未查询到课程预发布信息");
         if (!coursePublishPre.getCompanyId().equals(companyId))
             XueChengPlusException.cast("只允许提交本机构的课程");
@@ -167,7 +168,7 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
         try {
             configuration.setDirectoryForTemplateLoading(new File(classpath + "/templates/"));
         } catch (IOException e) {
-            log.error("失败,err{}",e.getCause());
+            log.error("失败,err{}", e.getCause());
             e.printStackTrace();
             XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
         }
@@ -179,7 +180,7 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
         try {
             template = configuration.getTemplate("course_template.ftl");
         } catch (IOException e) {
-            log.error("加载模板文件失败,{}",e.getCause());
+            log.error("加载模板文件失败,{}", e.getCause());
             e.printStackTrace();
             XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
         }
@@ -207,16 +208,16 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
         //输出流
         File tempFile = null;
         try {
-            tempFile = File.createTempFile("coursehtml",".temp");
+            tempFile = File.createTempFile("coursehtml", ".temp");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        try(FileOutputStream outputStream = new FileOutputStream(tempFile)){
+        try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
             IOUtils.copy(inputStream, outputStream);
-        }catch (Exception e){
+        } catch (Exception e) {
             log.error("出错了");
             e.printStackTrace();
-             XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
+            XueChengPlusException.cast(CommonError.UNKOWN_ERROR);
         }
 
         return tempFile;
@@ -234,7 +235,21 @@ public class CoursePublishServiceImpl extends ServiceImpl<CoursePublishMapper, C
     @Override
     public void uploadCourseHtml(Long courseId, File file) throws XueChengPlusException {
         MultipartFile multipartFile = MultipartSupportConfig.getMultipartFile(file);
-        mediaServiceClient.uploadHtml(multipartFile,courseId.toString()+".html");
+        mediaServiceClient.uploadHtml(multipartFile, courseId.toString() + ".html");
+    }
+
+    /**
+     * description 根据id查询发布的课程
+     *
+     * @param courseId 课程id
+     * @return com.xuecheng.content.model.po.CoursePublish
+     * @author: woldier
+     * @date: 2023/4/11 20:32
+     */
+
+    @Override
+    public CoursePublish getCoursePublish(Long courseId) {
+        return this.getById(courseId);
     }
 
 
