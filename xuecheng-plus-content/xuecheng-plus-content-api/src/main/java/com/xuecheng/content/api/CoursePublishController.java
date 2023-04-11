@@ -1,6 +1,7 @@
 package com.xuecheng.content.api;
 
 import com.xuecheng.base.exception.XueChengPlusException;
+import com.xuecheng.content.model.po.CoursePublish;
 import com.xuecheng.content.service.CoursePublishPreCustomService;
 import com.xuecheng.content.service.CoursePublishService;
 import io.swagger.annotations.ApiOperation;
@@ -38,30 +39,49 @@ public class CoursePublishController {
     }
 
     /**
-    * @description 课程提交审核
-    * @param courseId  课程id
-    * @return void
-    * @author: woldier
-    * @date: 2023/3/24 17:14
-    */
+     * @param courseId 课程id
+     * @return void
+     * @description 课程提交审核
+     * @author: woldier
+     * @date: 2023/3/24 17:14
+     */
     @ResponseBody
     @PostMapping("/courseaudit/commit/{courseId}")
     public void commitAudit(@PathVariable("courseId") Long courseId) throws XueChengPlusException {
 
-        coursePublishPreCustomService.commitAudit(1232141425L,courseId);
+        coursePublishPreCustomService.commitAudit(1232141425L, courseId);
     }
+
     /**
-    * @description 课程发布
-    * @param courseId 课程id
-    * @return void
-    * @author: woldier
-    * @date: 2023/3/26 17:22
-    */
+     * @param courseId 课程id
+     * @return void
+     * @description 课程发布
+     * @author: woldier
+     * @date: 2023/3/26 17:22
+     */
     @ApiOperation("课程发布")
     @ResponseBody
-    @PostMapping ("/coursepublish/{courseId}")
+    @PostMapping("/coursepublish/{courseId}")
     public void coursepublish(@PathVariable("courseId") Long courseId) throws XueChengPlusException {
-        coursePublishService.coursePublish(1232141425L,courseId);
+        coursePublishService.coursePublish(1232141425L, courseId);
+    }
+
+
+    /**
+     * description 微服务远程调用,根据id查询课程发布信息
+     * 若查询成功返回对象,返回null表示未查询到
+     *
+     * @param courseId 课程id
+     * @return CoursePublish
+     * @author: woldier
+     * @date: 2023/4/11 20:31
+     */
+    @ApiOperation("查询课程发布信息")
+    @ResponseBody
+    @GetMapping("/r/coursepublish/{courseId}")
+    public CoursePublish getCoursepublish(@PathVariable("courseId") Long courseId) {
+        CoursePublish coursePublish = coursePublishService.getCoursePublish(courseId);
+        return coursePublish;
     }
 
 }
