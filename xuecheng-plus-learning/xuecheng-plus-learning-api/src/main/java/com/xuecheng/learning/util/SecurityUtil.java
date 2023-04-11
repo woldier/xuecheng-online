@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 /**
  * @author Mr.M
  * @version 1.0
- * @description TODO
+ * @description spring security 工具类
  * @date 2022/10/20 11:41
  */
 @Slf4j
