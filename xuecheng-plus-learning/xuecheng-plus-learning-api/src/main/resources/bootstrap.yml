@@ -7,10 +7,10 @@ spring:
     nacos:
       server-addr: 121.4.122.56:8848
       discovery:
-        namespace: dev1010
+        namespace: dev
         group: xuecheng-plus-project
       config:
-        namespace: dev1010
+        namespace: dev
         group: xuecheng-plus-project
         file-extension: yaml
         refresh-enabled: true
