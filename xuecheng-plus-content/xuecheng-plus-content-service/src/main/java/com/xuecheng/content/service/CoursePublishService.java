@@ -68,4 +68,15 @@ public interface CoursePublishService extends IService<CoursePublish> {
      * @date: 2023/3/27 16:55
      */
     public void uploadCourseHtml(Long courseId, File file) throws XueChengPlusException;
+
+    /**
+    *
+    * description 根据id查询发布的课程
+    *
+    * @param courseId  课程id
+    * @return com.xuecheng.content.model.po.CoursePublish
+    * @author: woldier
+    * @date: 2023/4/11 20:32
+    */
+    CoursePublish getCoursePublish(Long courseId);
 }
