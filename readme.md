@@ -16351,9 +16351,9 @@ public class CoursePublishTask extends MessageProcessAbstract {
 
 [章节六](./chapter6.md)
 
+## 7.  选课学习
 
-
-
+[章节七](./chapter7.md)
 
 ```
 ### XXX.XXX xxxxxx模块
