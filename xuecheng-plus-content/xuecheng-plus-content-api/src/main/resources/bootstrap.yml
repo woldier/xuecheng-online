@@ -4,7 +4,7 @@ spring:
     name: content-api
   cloud:
     nacos:
-      server-addr: 121.4.122.56:8848
+      server-addr: woldier.top:8848
       discovery:
         namespace: dev #命名空间 (与profile.active有区别配置文件的不是根据命名空间来拼接的)
         group: xuecheng-plus-project
