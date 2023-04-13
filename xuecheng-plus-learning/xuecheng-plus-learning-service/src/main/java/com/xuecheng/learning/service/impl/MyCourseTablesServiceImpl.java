@@ -14,6 +14,7 @@ import com.xuecheng.learning.service.MyCourseTablesService;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.BeanUtils;
@@ -31,6 +32,7 @@ import java.util.List;
  **/
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MyCourseTablesServiceImpl implements MyCourseTablesService {
 
     private final CoursePublishClient coursePublishClient;
@@ -221,6 +223,40 @@ public class MyCourseTablesServiceImpl implements MyCourseTablesService {
             xcCourseTablesDto.setLearnStatus(LearningStat.EXPIRE_OR_RECHARGE.getCode());
             return xcCourseTablesDto;
         }
+    }
+    @Transactional
+    @Override
+    public boolean saveChooseCourseStauts(String choosecourseId) throws XueChengPlusException {
+
+        //根据choosecourseId查询选课记录
+        XcChooseCourse xcChooseCourse = xcChooseCourseMapper.selectById(choosecourseId);
+        if(xcChooseCourse == null){
+            log.debug("收到支付结果通知没有查询到关联的选课记录,choosecourseId:{}",choosecourseId);
+            return false;
+        }
+        String status = xcChooseCourse.getStatus();
+        if("701001".equals(status)){
+            //添加到课程表
+            addCourseTabls(xcChooseCourse);
+            return true;
+        }
+        //待支付状态才处理
+        if ("701002".equals(status)) {
+            //更新为选课成功
+            xcChooseCourse.setStatus("701001");
+            int update = xcChooseCourseMapper.updateById(xcChooseCourse);
+            if(update>0){
+                log.debug("收到支付结果通知处理成功,选课记录:{}",xcChooseCourse);
+                //添加到课程表
+                addCourseTabls(xcChooseCourse);
+                return true;
+            }else{
+                log.debug("收到支付结果通知处理失败,选课记录:{}",xcChooseCourse);
+                return false;
+            }
+        }
+
+        return false;
     }
 
     /**

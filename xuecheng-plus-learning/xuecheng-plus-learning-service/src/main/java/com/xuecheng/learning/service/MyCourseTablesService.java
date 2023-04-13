@@ -68,4 +68,6 @@ public interface MyCourseTablesService {
      */
     XcCourseTablesDto getLeanringStatus(String userId, Long courseId);
 
+    boolean saveChooseCourseStauts(String choosecourseId) throws XueChengPlusException;
+
 }

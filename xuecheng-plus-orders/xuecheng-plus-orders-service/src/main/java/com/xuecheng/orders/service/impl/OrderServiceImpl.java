@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xuecheng.base.exception.XueChengPlusException;
 import com.xuecheng.base.utils.IdWorkerUtils;
 import com.xuecheng.base.utils.QRCodeUtil;
+import com.xuecheng.messagesdk.service.MqMessageService;
+import com.xuecheng.orders.config.PayNotifyConfig;
 import com.xuecheng.orders.mapper.XcOrdersGoodsMapper;
 import com.xuecheng.orders.mapper.XcOrdersMapper;
 import com.xuecheng.orders.mapper.XcPayRecordMapper;
@@ -22,6 +24,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.xuecheng.orders.config.AlipayConfig.*;
+
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,6 +45,7 @@ public class OrderServiceImpl implements OrderService {
     private final XcOrdersMapper ordersMapper;
     private final XcOrdersGoodsMapper ordersGoodsMapper;
     private final XcPayRecordMapper payRecordMapper;
+    private final MqMessageService mqMessageService;
 
     /**
      * description 创建订单
@@ -209,12 +213,14 @@ public class OrderServiceImpl implements OrderService {
                         int update = ordersMapper.update(order_u, new LambdaQueryWrapper<XcOrders>().eq(XcOrders::getId, orderId));
                         if (update > 0) {
                             log.info("收到支付通知，更新订单状态成功.付交易流水号:{},支付结果:{},订单号:{},状态:{}", payNo, trade_status, orderId, "600002");
+                            //订单类型,购买课程、购买学习资料..
+                            String orderType = orders.getOrderType();
+                            //写消息记录
+                            mqMessageService.addMessage(PayNotifyConfig.MESSAGE_TYPE, orders.getOutBusinessId(), orderType, null);
                         } else {
                             log.error("收到支付通知，更新订单状态失败.支付交易流水号:{},支付结果:{},订单号:{},状态:{}", payNo, trade_status, orderId, "600002");
                         }
 
-                    } else {
-                        log.error("收到支付通知，根据交易记录找不到订单,交易记录号:{},订单号:{}",orderId, orderId);
                     }
 
 
