@@ -6,10 +6,10 @@ spring:
     nacos:
       server-addr: 121.4.122.56:8848
       discovery:
-        namespace: dev166
+        namespace: dev
         group: xuecheng-plus-project
       config:
-        namespace: dev166
+        namespace: dev
         group: xuecheng-plus-project
         file-extension: yaml
         refresh-enabled: true
@@ -24,6 +24,15 @@ spring:
           - data-id: logging-${spring.profiles.active}.yaml
             group: xuecheng-plus-common
             refresh: true
+          - data-id: rabbitmq-${spring.profiles.active}.yaml
+            group: xuecheng-plus-common
+            refresh: true
 
   profiles:
     active: dev
+
+pay:
+  alipay:
+    APP_ID: 111
+    APP_PRIVATE_KEY: 222
+    ALIPAY_PUBLIC_KEY: 333
