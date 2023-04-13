@@ -20,7 +20,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import static com.xuecheng.orders.config.AlipayConfig.CHARSET;
+import static com.xuecheng.orders.config.AlipayConfig.*;
 
 /**
  * @author Mr.M
@@ -43,7 +43,7 @@ public class PayTestController {
     @RequestMapping("/alipaytest")
     public void doPost(HttpServletRequest httpRequest,
                        HttpServletResponse httpResponse) throws ServletException, IOException, AlipayApiException {
-        AlipayClient alipayClient = new DefaultAlipayClient(AlipayConfig.URL, APP_ID, APP_PRIVATE_KEY, AlipayConfig.FORMAT, CHARSET, ALIPAY_PUBLIC_KEY, AlipayConfig.SIGNTYPE);
+        AlipayClient alipayClient = new DefaultAlipayClient(URL, APP_ID, APP_PRIVATE_KEY,FORMAT, CHARSET, ALIPAY_PUBLIC_KEY, SIGNTYPE);
         //获得初始化的AlipayClient
         AlipayTradeWapPayRequest alipayRequest = new AlipayTradeWapPayRequest();//创建API对应的request
 //        alipayRequest.setReturnUrl("http://domain.com/CallBack/return_url.jsp");
