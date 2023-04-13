@@ -20,7 +20,6 @@ import java.time.LocalDateTime;
 @Data
 @ToString
 @TableName("xc_orders")
-@Mapper
 public class XcOrders implements Serializable {
 
     private static final long serialVersionUID = 1L;

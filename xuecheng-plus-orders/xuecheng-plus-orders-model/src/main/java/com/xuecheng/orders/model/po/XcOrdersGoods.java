@@ -19,7 +19,6 @@ import java.io.Serializable;
 @Data
 @ToString
 @TableName("xc_orders_goods")
-@Mapper
 public class XcOrdersGoods implements Serializable {
 
     private static final long serialVersionUID = 1L;

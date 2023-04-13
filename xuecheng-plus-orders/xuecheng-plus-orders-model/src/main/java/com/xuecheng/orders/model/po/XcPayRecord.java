@@ -20,7 +20,6 @@ import java.time.LocalDateTime;
 @Data
 @ToString
 @TableName("xc_pay_record")
-@Mapper
 public class XcPayRecord implements Serializable {
 
     private static final long serialVersionUID = 1L;
