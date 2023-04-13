@@ -2,6 +2,7 @@ package com.xuecheng.orders.config;
 
 import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 /**
  * @author woldier
@@ -9,6 +10,7 @@ import org.springframework.context.annotation.Bean;
  * @description MQ消息队列配置类
  * @date 2023/4/13 15:46
  **/
+@Configuration
 public class PayNotifyConfig {
     //交换机
     public static final String PAYNOTIFY_EXCHANGE_FANOUT = "paynotify_exchange_fanout";
