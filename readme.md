@@ -16355,6 +16355,12 @@ public class CoursePublishTask extends MessageProcessAbstract {
 
 [章节七](./chapter7.md)
 
+
+
+## 8.  项目部署
+
+[章节八](./chapter8.md)
+
 ```
 ### XXX.XXX xxxxxx模块
 
